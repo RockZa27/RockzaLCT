@@ -5,12 +5,15 @@ import { useApp } from '../state/AppContext';
 import { LoginModal } from './LoginModal';
 import { Toasts } from './Toasts';
 
-export type PageId = 'connection' | 'brightness' | 'test';
+export type PageId = 'connection' | 'brightness' | 'test' | 'sender' | 'receiver' | 'layout';
 
 const NAV: { id: PageId; label: MessageKey }[] = [
   { id: 'connection', label: 'nav.connection' },
   { id: 'brightness', label: 'nav.brightness' },
   { id: 'test', label: 'nav.test' },
+  { id: 'sender', label: 'nav.sender' },
+  { id: 'receiver', label: 'nav.receiver' },
+  { id: 'layout', label: 'nav.layout' },
 ];
 
 export function Layout({

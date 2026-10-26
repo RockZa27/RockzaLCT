@@ -17,6 +17,10 @@ import {
 } from '@rockzalct/shared';
 import { createDefaultSessionFactory, DEFAULT_NET_PORT } from './factories.js';
 import type { SessionFactory, SessionLike } from './session.js';
+import type { FeatureContext } from './features/context.js';
+import { createLayoutFeature } from './features/layout.js';
+import { createReceiverFeature } from './features/receiver.js';
+import { createSenderFeature } from './features/sender.js';
 
 /** Sending-card address on the bus; the only (first) sender is addressed as 0. */
 const SENDER = 0;
@@ -430,7 +434,12 @@ export function createDeviceService(options: DeviceServiceOptions = {}): DeviceS
     return ok;
   }
 
+  const ctx: FeatureContext = { withSession, userLevel: () => ({ ...userLevel }), timeoutMs };
+
   return {
+    ...createSenderFeature(ctx),
+    ...createReceiverFeature(ctx),
+    ...createLayoutFeature(ctx),
     discover,
     connect,
     disconnect,

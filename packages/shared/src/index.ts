@@ -59,8 +59,16 @@ export interface UserLevel {
   level: 'normal' | 'advanced';
 }
 
+import type { SenderApi } from './features/sender.js';
+import type { ReceiverApi } from './features/receiver.js';
+import type { LayoutApi } from './features/layout.js';
+
+export * from './features/sender.js';
+export * from './features/receiver.js';
+export * from './features/layout.js';
+
 /** Operations exposed to the renderer over IPC. All methods may reject with DeviceError. */
-export interface DeviceApi {
+export interface DeviceApi extends SenderApi, ReceiverApi, LayoutApi {
   discover(options?: { netHosts?: string[]; timeoutMs?: number }): Promise<DiscoveredController[]>;
   connect(id: string): Promise<ControllerInfo>;
   disconnect(id: string): Promise<void>;

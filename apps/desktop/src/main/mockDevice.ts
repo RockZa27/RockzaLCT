@@ -7,6 +7,10 @@ import {
   type DisplayMode,
   type TestPattern,
 } from '@rockzalct/shared';
+import type { MockContext } from './mock/context';
+import { createMockLayout } from './mock/layout';
+import { createMockReceiver } from './mock/receiver';
+import { createMockSender } from './mock/sender';
 
 export const MOCK_ADVANCED_PASSWORD = 'rockza';
 
@@ -116,7 +120,16 @@ export function createMockDevice(options: MockDeviceOptions = {}): DeviceApi {
     return f;
   };
 
+  const ctx: MockContext = {
+    requireConnected: (id) => void connectedFake(id),
+    delay,
+    isAdvanced: () => advanced,
+  };
+
   return {
+    ...createMockSender(ctx),
+    ...createMockReceiver(ctx),
+    ...createMockLayout(ctx),
     async discover(opts) {
       await delay();
       const hosts = opts?.netHosts?.map((h) => h.trim()).filter(Boolean) ?? [];

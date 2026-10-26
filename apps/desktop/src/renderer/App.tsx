@@ -5,6 +5,9 @@ import { I18nProvider } from './i18n/I18nProvider';
 import type { Lang } from './i18n/dictionary';
 import { BrightnessPage } from './pages/BrightnessPage';
 import { ConnectionPage } from './pages/ConnectionPage';
+import { LayoutPage } from './pages/LayoutPage';
+import { ReceiverPage } from './pages/ReceiverPage';
+import { SenderPage } from './pages/SenderPage';
 import { TestDisplayPage } from './pages/TestDisplayPage';
 import { AppProvider } from './state/AppContext';
 
@@ -18,6 +21,9 @@ export function App({ api, initialLang }: { api: DeviceApi; initialLang?: Lang }
           {page === 'connection' && <ConnectionPage />}
           {page === 'brightness' && <BrightnessPage />}
           {page === 'test' && <TestDisplayPage />}
+          {page === 'sender' && <SenderPage />}
+          {page === 'receiver' && <ReceiverPage />}
+          {page === 'layout' && <LayoutPage />}
         </Layout>
       </AppProvider>
     </I18nProvider>

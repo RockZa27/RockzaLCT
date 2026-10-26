@@ -2,6 +2,7 @@ import { vi } from 'vitest';
 import { render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ControllerInfo, DeviceApi, DiscoveredController } from '@rockzalct/shared';
+import { DEVICE_METHODS } from '../common/methods';
 import { App } from './App';
 import type { Lang } from './i18n/dictionary';
 
@@ -41,7 +42,9 @@ export function makeFakeApi(overrides: Partial<DeviceApi> = {}) {
     setDisplayMode: vi.fn(async () => undefined),
     login: vi.fn(async (pw: string) => pw === 'secret'),
     ...overrides,
-  };
+  } as Record<string, unknown>;
+  // Feature methods not stubbed above default to a resolved no-op mock.
+  for (const m of DEVICE_METHODS) if (!(m in api)) api[m] = vi.fn(async () => undefined);
   return api as typeof api & DeviceApi;
 }
 

@@ -1,6 +1,13 @@
+import { layoutEn, layoutTh } from './layout';
+import { receiverEn, receiverTh } from './receiver';
+import { senderEn, senderTh } from './sender';
+
 export type Lang = 'th' | 'en';
 
 const en = {
+  ...senderEn,
+  ...receiverEn,
+  ...layoutEn,
   'app.name': 'RockzaLCT',
   'nav.connection': 'Connection',
   'nav.brightness': 'Brightness',
@@ -83,6 +90,9 @@ const en = {
 export type MessageKey = keyof typeof en;
 
 const th: Record<MessageKey, string> = {
+  ...senderTh,
+  ...receiverTh,
+  ...layoutTh,
   'app.name': 'RockzaLCT',
   'nav.connection': 'การเชื่อมต่อ',
   'nav.brightness': 'ความสว่าง',
