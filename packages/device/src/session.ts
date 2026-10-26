@@ -37,6 +37,8 @@ export interface SessionLike {
     broadcast: boolean,
     mode: number,
   ): Promise<void>;
+  SetKillMode(addr: number, portAddr: number, scanBoardAddr: number, broadcast: boolean, mode: number): Promise<void>;
+  SetLockMode(addr: number, portAddr: number, scanBoardAddr: number, broadcast: boolean, mode: number): Promise<void>;
   /** Close the underlying connection. */
   close(): unknown;
 }

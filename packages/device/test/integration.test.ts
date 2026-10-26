@@ -12,6 +12,10 @@ let id: string;
 
 const selfTest = (card: number): number =>
   sim.state.receivingCards[card]!.memory.read(SELF_TEST_ADDR, 1)[0]!;
+const KILL_ADDR = 0x0200_0100;
+const LOCK_ADDR = 0x0200_0102;
+const regs = (addr: number): number[] =>
+  sim.state.receivingCards.map((c) => c.memory.read(addr, 1)[0]!);
 const globalRaw = (card: number): number =>
   sim.state.receivingCards[card]!.memory.read(0x0200_0001, 1)[0]!;
 
@@ -159,14 +163,28 @@ describe('connected controller', () => {
     await service.setTestPattern(id, 'off');
     expect(selfTest(2)).toBe(0);
 
-    await service.setDisplayMode(id, 'freeze');
-    expect(selfTest(1)).toBe(32);
-    await service.setDisplayMode(id, 'normal');
-    expect(selfTest(1)).toBe(0);
-
-    await expectCode(service.setDisplayMode(id, 'blackout'), 'PROTOCOL');
     await expectCode(service.setTestPattern(id, 'plaid' as never), 'INVALID_ARGUMENT');
     await expectCode(service.setDisplayMode(id, 'sepia' as never), 'INVALID_ARGUMENT');
+  });
+
+  it('blackout / freeze / normal use the kill and lock registers on every card', async () => {
+    await fresh();
+    await service.connect(id);
+    await service.setTestPattern(id, 'blue');
+
+    await service.setDisplayMode(id, 'blackout');
+    expect(regs(KILL_ADDR)).toEqual([1, 1, 1, 1]);
+    expect(regs(LOCK_ADDR)).toEqual([0, 0, 0, 0]);
+
+    await service.setDisplayMode(id, 'freeze');
+    expect(regs(KILL_ADDR)).toEqual([0, 0, 0, 0]);
+    expect(regs(LOCK_ADDR)).toEqual([1, 1, 1, 1]);
+
+    await service.setDisplayMode(id, 'normal');
+    expect(regs(KILL_ADDR)).toEqual([0, 0, 0, 0]);
+    expect(regs(LOCK_ADDR)).toEqual([0, 0, 0, 0]);
+    // the test pattern is a separate register and survives every display-mode change
+    expect([0, 1, 2, 3].map(selfTest)).toEqual([4, 4, 4, 4]);
   });
 
   it('can reconnect after disconnect, and all calls after disconnect are NOT_CONNECTED', async () => {

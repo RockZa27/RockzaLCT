@@ -1,5 +1,5 @@
-export { createDeviceService, formatEdition, mapError, modelName, parseNetHost } from './service.js';
-export type { DeviceService, DeviceServiceOptions, FirmwareDetails } from './service.js';
+export { DISPLAY_MODE_VALUES, createDeviceService, formatEdition, mapError, modelName, parseNetHost } from './service.js';
+export type { DisplayModeValues, DeviceService, DeviceServiceOptions, FirmwareDetails } from './service.js';
 export {
   createDefaultSessionFactory,
   createNetSessionFactory,

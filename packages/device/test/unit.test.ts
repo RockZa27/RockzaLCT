@@ -27,6 +27,8 @@ function fakeSession(overrides: Partial<SessionLike> = {}): SessionLike {
     SetGlobalBrightness: async () => undefined,
     SetRGBBrightness: async () => undefined,
     SetSelfTestMode: async () => undefined,
+    SetKillMode: async () => undefined,
+    SetLockMode: async () => undefined,
     close: () => true,
     ...overrides,
   };
@@ -150,7 +152,7 @@ describe('error mapping on operations', () => {
       throw mode === 'timeout' ? timeoutError() : mode === 'response' ? responseError() : new ConnectionClosedError();
     };
     const { svc, id } = await setup(
-      fakeSession({ ReadAllBrightnessInfo: fail, SetGlobalBrightness: fail, SetSelfTestMode: fail }),
+      fakeSession({ ReadAllBrightnessInfo: fail, SetGlobalBrightness: fail, SetSelfTestMode: fail, SetKillMode: fail }),
     );
     await svc.connect(id);
     expect(await codeOf(svc.getBrightness(id))).toBe('TIMEOUT');
@@ -158,7 +160,7 @@ describe('error mapping on operations', () => {
     expect(await codeOf(svc.setTestPattern(id, 'blue'))).toBe('TIMEOUT');
     mode = 'response';
     expect(await codeOf(svc.getBrightness(id))).toBe('PROTOCOL');
-    expect(await codeOf(svc.setDisplayMode(id, 'freeze'))).toBe('PROTOCOL');
+    expect(await codeOf(svc.setDisplayMode(id, 'blackout'))).toBe('PROTOCOL');
     mode = 'closed';
     expect(await codeOf(svc.getBrightness(id))).toBe('NOT_CONNECTED');
     // a closed connection is dropped from the registry
@@ -220,13 +222,18 @@ describe('validation', () => {
     expect(() => svc.getFirmwareDetails(id)).toThrow(DeviceError);
   });
 
-  it('blackout is unsupported and says so', async () => {
-    const { svc, id } = await setup(fakeSession());
-    await svc.connect(id);
-    await expect(svc.setDisplayMode(id, 'blackout')).rejects.toMatchObject({
-      code: 'PROTOCOL',
-      message: expect.stringContaining('not supported') as string,
+  it('display modes write kill/lock values, overridable via options', async () => {
+    const kill = vi.fn<SessionLike['SetKillMode']>(async () => undefined);
+    const lock = vi.fn<SessionLike['SetLockMode']>(async () => undefined);
+    const { svc, id } = await setup(fakeSession({ SetKillMode: kill, SetLockMode: lock }), {
+      displayModeValues: { lockOn: 2 },
     });
+    await svc.connect(id);
+    await svc.setDisplayMode(id, 'blackout');
+    await svc.setDisplayMode(id, 'freeze');
+    await svc.setDisplayMode(id, 'normal');
+    expect(kill.mock.calls.map((c) => c[4])).toEqual([1, 0, 0]);
+    expect(lock.mock.calls.map((c) => c[4])).toEqual([0, 2, 0]);
   });
 });
 

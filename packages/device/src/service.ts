@@ -43,7 +43,28 @@ const TEST_PATTERN_MODE: Record<TestPattern, number> = {
   grayscale: TestModeEnum.GrayIncrease_Mode,
 };
 
+/**
+ * Byte values written by setDisplayMode via SetKillMode (blackout, receiving-card register
+ * 0x02000100) and SetLockMode (freeze, register 0x02000102).
+ *
+ * UNVERIFIED ON HARDWARE. @novastar/native documents no on/off values for these registers. Evidence
+ * used: both registers are 1 byte (AddressMapping.d.mts KillModeOccupancy/LockModeOccupancy = 1),
+ * the decompiled structs expose `IsKillMode` as a boolean (ScanBoardRegionInfo.d.mts), and
+ * ControlModeTypeEnum (ControlModeType.d.mts) is Normal=0, Black=1, Lock=2. So off=0 and on=1 was
+ * chosen for both; if hardware wants lock=2 override `displayModeValues.lockOn` in the options.
+ */
+export const DISPLAY_MODE_VALUES = {
+  killOn: 1,
+  killOff: 0,
+  lockOn: 1,
+  lockOff: 0,
+} as const;
+
+export type DisplayModeValues = { [K in keyof typeof DISPLAY_MODE_VALUES]: number };
+
 export interface DeviceServiceOptions {
+  /** Override DISPLAY_MODE_VALUES (e.g. after a hardware test). */
+  displayModeValues?: Partial<DisplayModeValues>;
   /** Creates sessions; default routes serial/net to the real @novastar bindings. */
   sessionFactory?: SessionFactory;
   /** Advanced-user password, default "admin". */
@@ -119,6 +140,7 @@ export function mapError(err: unknown): DeviceError {
 }
 
 export function createDeviceService(options: DeviceServiceOptions = {}): DeviceService {
+  const dmv: DisplayModeValues = { ...DISPLAY_MODE_VALUES, ...options.displayModeValues };
   const advancedPassword = options.advancedPassword ?? 'admin';
   const timeoutMs = options.timeoutMs ?? 2000;
   const netPort = options.netPort ?? DEFAULT_NET_PORT;
@@ -391,16 +413,14 @@ export function createDeviceService(options: DeviceServiceOptions = {}): DeviceS
       throw new DeviceError('INVALID_ARGUMENT', `unknown display mode: ${String(mode)}`);
     }
     connected(id);
-    if (mode === 'blackout') {
-      throw new DeviceError(
-        'PROTOCOL',
-        'not supported: @novastar/native exposes no runtime black-screen (blackout) command',
-      );
-    }
-    // normal clears the self-test register (also ends any test pattern / freeze);
-    // freeze uses TestModeEnum.ParaFreeze. Semantics of ParaFreeze are UNVERIFIED on hardware.
-    const value = mode === 'normal' ? TestModeEnum.Reserved1_Mode : TestModeEnum.ParaFreeze;
-    await withSession(id, (s) => s.SetSelfTestMode(SENDER, ALL_PORTS, ALL_CARDS, true, value));
+    // Blackout = kill register, freeze = lock register; they are independent of the test-pattern
+    // register. 'normal' switches both off. Values: see DISPLAY_MODE_VALUES.
+    const kill = mode === 'blackout' ? dmv.killOn : dmv.killOff;
+    const lock = mode === 'freeze' ? dmv.lockOn : dmv.lockOff;
+    await withSession(id, async (s) => {
+      await s.SetKillMode(SENDER, ALL_PORTS, ALL_CARDS, true, kill);
+      await s.SetLockMode(SENDER, ALL_PORTS, ALL_CARDS, true, lock);
+    });
   }
 
   async function login(password: string): Promise<boolean> {

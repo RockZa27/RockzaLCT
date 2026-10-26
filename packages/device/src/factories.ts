@@ -12,6 +12,8 @@ import '@novastar/native/api/ReadAllBrightnessInfo';
 import '@novastar/native/api/SetGlobalBrightness';
 import '@novastar/native/api/SetRGBBrightness';
 import '@novastar/native/api/SetSelfTestMode';
+import '@novastar/native/api/SetKillMode';
+import '@novastar/native/api/SetLockMode';
 import type { OpenOptions, SessionFactory, SessionLike } from './session.js';
 
 export const DEFAULT_NET_PORT = 5200;
