@@ -3,12 +3,12 @@ import { Packet, ResponseError, TimeoutError, Request } from '@novastar/codec';
 import {
   DeviceError,
   RECEIVER_METHODS,
-  parseCabinetLibraryJson,
-  parseCabinetProfileJson,
-  serializeCabinetLibrary,
-  serializeCabinetProfile,
-  validateCabinetProfile,
-  type CabinetProfile,
+  parseModuleLibraryJson,
+  parseModuleProfileJson,
+  serializeModuleLibrary,
+  serializeModuleProfile,
+  validateModuleProfile,
+  type ModuleProfile,
   type ReceiverTarget,
 } from '@rockzalct/shared';
 import { startSimulator, type SimulatorHandle } from '@rockzalct/simulator';
@@ -30,7 +30,7 @@ const expectCode = async (p: Promise<unknown>, code: string): Promise<void> => {
   expect((err as DeviceError).code).toBe(code);
 };
 
-const PROFILE: CabinetProfile = {
+const PROFILE: ModuleProfile = {
   name: 'P3 indoor 64x32',
   width: 64,
   height: 32,
@@ -49,15 +49,15 @@ const PROFILE: CabinetProfile = {
 describe('library model (pure)', () => {
   it('lists every ReceiverApi method', () => {
     expect(Object.keys(RECEIVER_METHODS).sort()).toEqual(
-      ['applyCabinetProfile', 'getReceiverParameters', 'setReceiverParameters'].sort(),
+      ['applyModuleProfile', 'getReceiverParameters', 'setReceiverParameters'].sort(),
     );
   });
 
   it('round-trips a profile through JSON and normalises input', () => {
-    const res = parseCabinetProfileJson(serializeCabinetProfile(PROFILE));
+    const res = parseModuleProfileJson(serializeModuleProfile(PROFILE));
     expect(res).toEqual({ ok: true, profile: PROFILE });
 
-    const messy = validateCabinetProfile({ ...PROFILE, name: '  Spaced  ', note: '   ', extra: 1, driverIc: null });
+    const messy = validateModuleProfile({ ...PROFILE, name: '  Spaced  ', note: '   ', extra: 1, driverIc: null });
     expect(messy.ok).toBe(true);
     if (messy.ok) {
       expect(messy.profile.name).toBe('Spaced');
@@ -68,34 +68,34 @@ describe('library model (pure)', () => {
   });
 
   it('reports every bad field', () => {
-    const res = validateCabinetProfile({ name: '', width: 0, height: 256, scanMode: 129, dataGroups: 1.5, refNumPerVs: 70000, gamma: -1, grayDepth: '8', grayRealize: 6, grayMode: 4, driverIc: 255, icPerGroup: 256 });
+    const res = validateModuleProfile({ name: '', width: 0, height: 256, scanMode: 129, dataGroups: 1.5, refNumPerVs: 70000, gamma: -1, grayDepth: '8', grayRealize: 6, grayMode: 4, driverIc: 255, icPerGroup: 256 });
     expect(res.ok).toBe(false);
     if (!res.ok) {
       expect(res.errors.map((e) => e.field).sort()).toEqual(
         ['dataGroups', 'driverIc', 'gamma', 'grayDepth', 'grayMode', 'grayRealize', 'height', 'icPerGroup', 'name', 'refNumPerVs', 'scanMode', 'width'].sort(),
       );
     }
-    expect(validateCabinetProfile(null).ok).toBe(false);
-    expect(validateCabinetProfile([]).ok).toBe(false);
-    expect(parseCabinetProfileJson('{nope').ok).toBe(false);
+    expect(validateModuleProfile(null).ok).toBe(false);
+    expect(validateModuleProfile([]).ok).toBe(false);
+    expect(parseModuleProfileJson('{nope').ok).toBe(false);
   });
 
   it('round-trips a library and rejects duplicates, wrong format and bad entries', () => {
     const other = { ...PROFILE, name: 'Other' };
-    const text = serializeCabinetLibrary([PROFILE, other]);
-    expect(parseCabinetLibraryJson(text)).toEqual({ ok: true, profiles: [PROFILE, other] });
+    const text = serializeModuleLibrary([PROFILE, other]);
+    expect(parseModuleLibraryJson(text)).toEqual({ ok: true, profiles: [PROFILE, other] });
 
-    const dup = serializeCabinetLibrary([PROFILE, { ...PROFILE, name: PROFILE.name.toUpperCase() }]);
-    const dupRes = parseCabinetLibraryJson(dup);
+    const dup = serializeModuleLibrary([PROFILE, { ...PROFILE, name: PROFILE.name.toUpperCase() }]);
+    const dupRes = parseModuleLibraryJson(dup);
     expect(dupRes.ok).toBe(false);
     if (!dupRes.ok) expect(dupRes.errors[0]!.field).toBe('profiles[1].name');
 
-    expect(parseCabinetLibraryJson('{"format":"x","version":1,"profiles":[]}').ok).toBe(false);
-    expect(parseCabinetLibraryJson('{"format":"rockzalct.cabinet-library","version":2,"profiles":[]}').ok).toBe(false);
-    const bad = parseCabinetLibraryJson('{"format":"rockzalct.cabinet-library","version":1,"profiles":[{"name":"a"}]}');
+    expect(parseModuleLibraryJson('{"format":"x","version":1,"profiles":[]}').ok).toBe(false);
+    expect(parseModuleLibraryJson('{"format":"rockzalct.module-library","version":2,"profiles":[]}').ok).toBe(false);
+    const bad = parseModuleLibraryJson('{"format":"rockzalct.module-library","version":1,"profiles":[{"name":"a"}]}');
     expect(bad.ok).toBe(false);
     if (!bad.ok) expect(bad.errors.every((e) => e.field.startsWith('profiles[0].'))).toBe(true);
-    expect(parseCabinetLibraryJson('not json').ok).toBe(false);
+    expect(parseModuleLibraryJson('not json').ok).toBe(false);
   });
 });
 
@@ -203,7 +203,7 @@ describe('against the simulator', () => {
     const target: ReceiverTarget = { scope: 'card', portIndex: 0, cardIndex: 0 };
     await expectCode(service.setReceiverParameters(id, target, { gamma: 20 }), 'PERMISSION');
     await expectCode(service.setReceiverParameters(id, { scope: 'all' }, { gamma: 20 }), 'PERMISSION');
-    await expectCode(service.applyCabinetProfile(id, target, PROFILE), 'PERMISSION');
+    await expectCode(service.applyModuleProfile(id, target, PROFILE), 'PERMISSION');
     // permission is checked before argument validation
     await expectCode(service.setReceiverParameters(id, target, { gamma: 9999 }), 'PERMISSION');
     expect(sim.state.requestCount).toBe(before);
@@ -264,7 +264,7 @@ describe('against the simulator', () => {
 
   it('applies a cabinet profile and reads it back', async () => {
     await fresh(true);
-    await service.applyCabinetProfile(id, { scope: 'card', portIndex: 0, cardIndex: 1 }, PROFILE);
+    await service.applyModuleProfile(id, { scope: 'card', portIndex: 0, cardIndex: 1 }, PROFILE);
     expect(await service.getReceiverParameters(id, 0, 1)).toMatchObject({
       moduleWidth: 64,
       moduleHeight: 32,
@@ -283,7 +283,7 @@ describe('against the simulator', () => {
     // optional fields (driver IC, ICs per group) are left alone when the profile omits them
     mem(0, 0).writeU8(R.driverIc, 7);
     const { driverIc: _d, icPerGroup: _i, ...bare } = PROFILE;
-    await service.applyCabinetProfile(id, { scope: 'card', portIndex: 0, cardIndex: 0 }, bare);
+    await service.applyModuleProfile(id, { scope: 'card', portIndex: 0, cardIndex: 0 }, bare);
     expect(byte(0, 0, R.driverIc)).toBe(7);
     expect(byte(0, 0, R.icPerGroup)).toBe(0);
     expect(byte(0, 0, R.moduleHeight)).toBe(32);
@@ -304,8 +304,8 @@ describe('against the simulator', () => {
     await expectCode(service.setReceiverParameters(id, card, { bogus: 1 } as never), 'INVALID_ARGUMENT');
     await expectCode(service.setReceiverParameters(id, { scope: 'card', portIndex: 255, cardIndex: 0 }, { gamma: 1 }), 'INVALID_ARGUMENT');
     await expectCode(service.setReceiverParameters(id, { scope: 'x' } as never, { gamma: 1 }), 'INVALID_ARGUMENT');
-    await expectCode(service.applyCabinetProfile(id, card, { ...PROFILE, width: 0 }), 'INVALID_ARGUMENT');
-    await expectCode(service.applyCabinetProfile(id, card, null as never), 'INVALID_ARGUMENT');
+    await expectCode(service.applyModuleProfile(id, card, { ...PROFILE, width: 0 }), 'INVALID_ARGUMENT');
+    await expectCode(service.applyModuleProfile(id, card, null as never), 'INVALID_ARGUMENT');
     expect(sim.state.requestCount).toBe(before);
 
     await expectCode(service.getReceiverParameters('net:9.9.9.9:5200', 0, 0), 'NOT_FOUND');
@@ -313,7 +313,7 @@ describe('against the simulator', () => {
     await service.disconnect(id);
     await expectCode(service.getReceiverParameters(id, 0, 0), 'NOT_CONNECTED');
     await expectCode(service.setReceiverParameters(id, card, { gamma: 1 }), 'NOT_CONNECTED');
-    await expectCode(service.applyCabinetProfile(id, card, PROFILE), 'NOT_CONNECTED');
+    await expectCode(service.applyModuleProfile(id, card, PROFILE), 'NOT_CONNECTED');
   });
 
   it('reports a card that is not on the chain as a protocol error (downstream timeout ack)', async () => {
@@ -432,7 +432,7 @@ describe('with a fake session', () => {
     const { session, calls } = fake();
     const { svc, id } = await setup(session);
     await svc.login('admin');
-    await svc.applyCabinetProfile(id, { scope: 'card', portIndex: 0, cardIndex: 0 }, PROFILE);
+    await svc.applyModuleProfile(id, { scope: 'card', portIndex: 0, cardIndex: 0 }, PROFILE);
     expect(calls.map((c) => c[0])).toEqual([
       'SetModuleWidth', 'SetModuleHeight', 'SetScanMode', 'SetDriverType', 'SetICNumber',
       'SetPhysicalTotalDataGroupNum', 'SetRefNumPerVs', 'SetGamma', 'SetGrayDepth', 'SetGrayMode',

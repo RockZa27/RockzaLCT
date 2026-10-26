@@ -30,11 +30,11 @@ import '@novastar/native/api/ReadTempInfoOfScanCard';
 import '@novastar/native/api/ReadVoltageOfScanCard';
 import {
   DeviceError,
-  validateCabinetProfile,
+  validateModuleProfile,
   validateCardIndex,
   validateReceiverTarget,
   validateReceiverWritable,
-  type CabinetProfile,
+  type ModuleProfile,
   type ReceiverApi,
   type ReceiverParameters,
   type ReceiverTarget,
@@ -220,13 +220,13 @@ export function createReceiverFeature(ctx: FeatureContext): ReceiverApi {
       await on(id, (s) => writeSafe(s, route, params));
     },
 
-    async applyCabinetProfile(id, target, profile): Promise<void> {
+    async applyModuleProfile(id, target, profile): Promise<void> {
       requireAdvanced();
       const badTarget = validateReceiverTarget(target);
       if (badTarget) throw invalid(badTarget);
-      const checked = validateCabinetProfile(profile);
+      const checked = validateModuleProfile(profile);
       if (!checked.ok) throw invalid(checked.errors.map((e) => e.message).join('; '));
-      const p: CabinetProfile = checked.profile;
+      const p: ModuleProfile = checked.profile;
       const r = routeOf(target);
       await on(id, async (s) => {
         // Geometry and driver first, then timing / grayscale (which depend on them).

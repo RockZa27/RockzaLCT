@@ -111,12 +111,13 @@ export function ScreenCanvas({ screen, ports, placements, tool, selected, t, onC
               stroke={isSelected ? '#ffffff' : '#5b677c'}
               strokeWidth={unit * (isSelected ? 0.06 : 0.02)}
             />
+            {/* corner label: chain lines run through cabinet centres and would cover it */}
             <text
-              x={r.x + r.width / 2}
-              y={r.y + r.height / 2}
-              textAnchor="middle"
-              dominantBaseline="central"
-              fontSize={unit * 0.3}
+              x={r.x + unit * 0.08}
+              y={r.y + unit * 0.08}
+              textAnchor="start"
+              dominantBaseline="hanging"
+              fontSize={unit * 0.24}
               fill="#e8ecf3"
               pointerEvents="none"
             >

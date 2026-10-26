@@ -1,6 +1,6 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { DeviceError, parseCabinetLibraryJson, type ReceiverParameters } from '@rockzalct/shared';
+import { DeviceError, parseModuleLibraryJson, type ReceiverParameters } from '@rockzalct/shared';
 import { CONTROLLER, connectAndGo, makeFakeApi, renderApp } from '../testUtils';
 
 const PARAMS: ReceiverParameters = {
@@ -28,7 +28,7 @@ const fakeReceiver = () =>
       moduleWidth: port === 1 ? 128 : 64,
     })),
     setReceiverParameters: vi.fn(async () => undefined),
-    applyCabinetProfile: vi.fn(async () => undefined),
+    applyModuleProfile: vi.fn(async () => undefined),
   });
 
 async function loginAdvanced(user: ReturnType<typeof renderApp>['user']) {
@@ -39,7 +39,7 @@ async function loginAdvanced(user: ReturnType<typeof renderApp>['user']) {
 }
 
 const editGroup = () => within(screen.getByRole('group', { name: 'Edit refresh, gamma and grayscale' }));
-const formGroup = () => within(screen.getByRole('group', { name: 'Cabinet definition' }));
+const formGroup = () => within(screen.getByRole('group', { name: 'Module definition' }));
 
 beforeEach(() => {
   localStorage.clear();
@@ -90,7 +90,7 @@ describe('ReceiverPage', () => {
 
     // library entries can be created while locked, but not applied
     await user.type(formGroup().getByLabelText('Name'), 'Locked');
-    await user.click(screen.getByRole('button', { name: 'Save cabinet' }));
+    await user.click(screen.getByRole('button', { name: 'Save module' }));
     expect(screen.getByRole('button', { name: 'Apply to card Locked' })).toBeDisabled();
 
     await loginAdvanced(user);
@@ -159,7 +159,7 @@ describe('ReceiverPage', () => {
     expect(editGroup().getByLabelText('Gamma (raw register value)')).toHaveValue(30);
   });
 
-  it('manages the cabinet library: validate, save, persist, apply, delete', async () => {
+  it('manages the module library: validate, save, persist, apply, delete', async () => {
     const api = fakeReceiver();
     const { user } = renderApp(api);
     await connectAndGo(user, screen, 'Receiving card');
@@ -168,20 +168,20 @@ describe('ReceiverPage', () => {
 
     // an invalid draft (no name, width 0) is rejected with an inline alert and nothing is stored
     fireEvent.change(formGroup().getByLabelText('Width (px)'), { target: { value: '0' } });
-    await user.click(screen.getByRole('button', { name: 'Save cabinet' }));
+    await user.click(screen.getByRole('button', { name: 'Save module' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Invalid values: Name, Width (px)');
-    expect(screen.getByText(/No cabinets yet/)).toBeInTheDocument();
-    expect(localStorage.getItem('rockzalct.cabinets')).toBeNull();
+    expect(screen.getByText(/No modules yet/)).toBeInTheDocument();
+    expect(localStorage.getItem('rockzalct.modules')).toBeNull();
 
     await user.type(formGroup().getByLabelText('Name'), 'P2.5 outdoor');
     fireEvent.change(formGroup().getByLabelText('Width (px)'), { target: { value: '96' } });
     fireEvent.change(formGroup().getByLabelText('Height (px)'), { target: { value: '48' } });
     fireEvent.change(formGroup().getByLabelText('Driver IC code (optional)'), { target: { value: '40' } });
     await user.selectOptions(formGroup().getByLabelText('Grayscale method'), '2');
-    await user.click(screen.getByRole('button', { name: 'Save cabinet' }));
-    expect(await screen.findByText('Cabinet saved: P2.5 outdoor')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Save module' }));
+    expect(await screen.findByText('Module saved: P2.5 outdoor')).toBeInTheDocument();
 
-    const stored = parseCabinetLibraryJson(localStorage.getItem('rockzalct.cabinets') ?? '');
+    const stored = parseModuleLibraryJson(localStorage.getItem('rockzalct.modules') ?? '');
     expect(stored).toEqual({
       ok: true,
       profiles: [
@@ -203,17 +203,17 @@ describe('ReceiverPage', () => {
 
     await user.click(screen.getByRole('button', { name: 'Apply to card P2.5 outdoor' }));
     await waitFor(() =>
-      expect(api.applyCabinetProfile).toHaveBeenCalledWith(
+      expect(api.applyModuleProfile).toHaveBeenCalledWith(
         CONTROLLER.id,
         { scope: 'card', portIndex: 0, cardIndex: 0 },
         expect.objectContaining({ name: 'P2.5 outdoor', width: 96, height: 48, grayRealize: 2, driverIc: 40 }),
       ),
     );
-    expect(await screen.findByText('Cabinet applied: P2.5 outdoor')).toBeInTheDocument();
+    expect(await screen.findByText('Module applied: P2.5 outdoor')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Delete P2.5 outdoor' }));
-    expect(screen.getByText(/No cabinets yet/)).toBeInTheDocument();
-    expect(parseCabinetLibraryJson(localStorage.getItem('rockzalct.cabinets') ?? '')).toEqual({ ok: true, profiles: [] });
+    expect(screen.getByText(/No modules yet/)).toBeInTheDocument();
+    expect(parseModuleLibraryJson(localStorage.getItem('rockzalct.modules') ?? '')).toEqual({ ok: true, profiles: [] });
   });
 
   it('captures the selected card into the form and round-trips the library through text', async () => {
@@ -228,10 +228,10 @@ describe('ReceiverPage', () => {
     expect(formGroup().getByLabelText('Grayscale method')).toHaveValue('1');
 
     await user.type(formGroup().getByLabelText('Name'), 'Captured');
-    await user.click(screen.getByRole('button', { name: 'Save cabinet' }));
+    await user.click(screen.getByRole('button', { name: 'Save module' }));
     await user.click(screen.getByRole('button', { name: 'Export to text' }));
     const box = screen.getByLabelText('Library JSON') as HTMLTextAreaElement;
-    expect(parseCabinetLibraryJson(box.value)).toMatchObject({ ok: true, profiles: [{ name: 'Captured', width: 64 }] });
+    expect(parseModuleLibraryJson(box.value)).toMatchObject({ ok: true, profiles: [{ name: 'Captured', width: 64 }] });
 
     // bad text is reported, library untouched
     fireEvent.change(box, { target: { value: '{"format":"nope"}' } });
@@ -241,13 +241,13 @@ describe('ReceiverPage', () => {
 
     // good text merges entries
     const incoming = JSON.stringify({
-      format: 'rockzalct.cabinet-library',
+      format: 'rockzalct.module-library',
       version: 1,
       profiles: [{ name: 'Imported', width: 40, height: 20, scanMode: 8, dataGroups: 4, refNumPerVs: 960, gamma: 22, grayDepth: 12, grayRealize: 0, grayMode: 1 }],
     });
     fireEvent.change(box, { target: { value: incoming } });
     await user.click(screen.getByRole('button', { name: 'Import from text' }));
-    expect(await screen.findByText('Imported 1 cabinets')).toBeInTheDocument();
+    expect(await screen.findByText('Imported 1 modules')).toBeInTheDocument();
     expect(screen.getByText('Imported')).toBeInTheDocument();
     expect(screen.getByText('Captured')).toBeInTheDocument();
   });
@@ -257,7 +257,7 @@ describe('ReceiverPage', () => {
     const { user } = renderApp(api, 'th');
     await user.click(screen.getByRole('button', { name: 'การ์ดรับ' }));
     expect(screen.getByRole('heading', { name: 'การ์ดรับ' })).toBeInTheDocument();
-    expect(screen.getByText('ไลบรารีตู้')).toBeInTheDocument();
+    expect(screen.getByText('ไลบรารีโมดูล')).toBeInTheDocument();
     expect(screen.getByText('กรุณาเชื่อมต่อตัวควบคุมก่อน')).toBeInTheDocument();
   });
 });

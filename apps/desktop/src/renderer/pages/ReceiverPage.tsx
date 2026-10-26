@@ -3,10 +3,10 @@ import {
   GRAY_MODE_NAMES,
   GRAY_REALIZE_NAMES,
   RECEIVER_LIMITS,
-  parseCabinetLibraryJson,
-  serializeCabinetLibrary,
-  validateCabinetProfile,
-  type CabinetProfile,
+  parseModuleLibraryJson,
+  serializeModuleLibrary,
+  validateModuleProfile,
+  type ModuleProfile,
   type ReceiverParameters,
   type ReceiverTarget,
 } from '@rockzalct/shared';
@@ -14,22 +14,22 @@ import { useI18n } from '../i18n/I18nProvider';
 import type { MessageKey } from '../i18n/dictionary';
 import { useApp } from '../state/AppContext';
 
-const LIBRARY_KEY = 'rockzalct.cabinets';
+const LIBRARY_KEY = 'rockzalct.modules';
 
-function loadLibrary(): CabinetProfile[] {
+function loadLibrary(): ModuleProfile[] {
   try {
     const text = localStorage.getItem(LIBRARY_KEY);
     if (!text) return [];
-    const res = parseCabinetLibraryJson(text);
+    const res = parseModuleLibraryJson(text);
     return res.ok ? res.profiles : [];
   } catch {
     return [];
   }
 }
 
-function saveLibrary(profiles: CabinetProfile[]): void {
+function saveLibrary(profiles: ModuleProfile[]): void {
   try {
-    localStorage.setItem(LIBRARY_KEY, serializeCabinetLibrary(profiles));
+    localStorage.setItem(LIBRARY_KEY, serializeModuleLibrary(profiles));
   } catch {
     /* storage unavailable: the library stays in memory only */
   }
@@ -114,7 +114,7 @@ function draftToCandidate(d: Draft): Record<string, unknown> {
   return out;
 }
 
-function profileToDraft(p: CabinetProfile): Draft {
+function profileToDraft(p: ModuleProfile): Draft {
   return {
     name: p.name,
     width: String(p.width),
@@ -170,7 +170,7 @@ export function ReceiverPage() {
   const [allCards, setAllCards] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  const [library, setLibrary] = useState<CabinetProfile[]>(loadLibrary);
+  const [library, setLibrary] = useState<ModuleProfile[]>(loadLibrary);
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
   const [draftErrors, setDraftErrors] = useState<DraftField[]>([]);
   const [libText, setLibText] = useState('');
@@ -238,13 +238,13 @@ export function ReceiverPage() {
     }
   };
 
-  const applyProfile = async (profile: CabinetProfile) => {
+  const applyProfile = async (profile: ModuleProfile) => {
     const tg = target();
     if (!connectedId || !tg) return;
     setBusy(true);
     try {
       const ok = await run(async () => {
-        await api.applyCabinetProfile(connectedId, tg, profile);
+        await api.applyModuleProfile(connectedId, tg, profile);
         return true;
       });
       if (ok) {
@@ -259,7 +259,7 @@ export function ReceiverPage() {
   const setDraftField = (f: DraftField, v: string) => setDraft((d) => ({ ...d, [f]: v }));
 
   const saveDraft = () => {
-    const res = validateCabinetProfile(draftToCandidate(draft));
+    const res = validateModuleProfile(draftToCandidate(draft));
     if (!res.ok) {
       setDraftErrors(res.errors.map((e) => e.field as DraftField));
       return;
@@ -282,7 +282,7 @@ export function ReceiverPage() {
   };
 
   const importText = () => {
-    const res = parseCabinetLibraryJson(libText);
+    const res = parseModuleLibraryJson(libText);
     if (!res.ok) {
       setLibError(t('rcv.lib.importFailed', { reason: res.errors[0]?.message ?? '' }));
       return;
@@ -588,7 +588,7 @@ export function ReceiverPage() {
         </label>
         {libError && <p className="field-error">{libError}</p>}
         <div className="row">
-          <button type="button" onClick={() => setLibText(serializeCabinetLibrary(library))}>
+          <button type="button" onClick={() => setLibText(serializeModuleLibrary(library))}>
             {t('rcv.lib.export')}
           </button>
           <button type="button" onClick={importText}>

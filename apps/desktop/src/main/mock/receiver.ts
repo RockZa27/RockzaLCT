@@ -1,6 +1,6 @@
 import {
   DeviceError,
-  validateCabinetProfile,
+  validateModuleProfile,
   validateCardIndex,
   validateReceiverTarget,
   validateReceiverWritable,
@@ -81,13 +81,13 @@ export function createMockReceiver(ctx: MockContext): ReceiverApi {
       }
     },
 
-    async applyCabinetProfile(id, target, profile) {
+    async applyModuleProfile(id, target, profile) {
       await ctx.delay();
       requireAdvanced();
       ctx.requireConnected(id);
       const badTarget = validateReceiverTarget(target);
       if (badTarget) throw new DeviceError('INVALID_ARGUMENT', badTarget);
-      const checked = validateCabinetProfile(profile);
+      const checked = validateModuleProfile(profile);
       if (!checked.ok) throw new DeviceError('INVALID_ARGUMENT', checked.errors.map((e) => e.message).join('; '));
       const p = checked.profile;
       for (const card of targets(id, target)) {

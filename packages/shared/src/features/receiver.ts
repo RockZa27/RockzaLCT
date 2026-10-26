@@ -17,7 +17,7 @@ export type ReceiverTarget = { scope: 'all' } | { scope: 'card'; portIndex: numb
 export interface ReceiverParameters {
   portIndex: number;
   cardIndex: number;
-  /** Module (cabinet unit) width in pixels, 1 byte. */
+  /** Module width in pixels, 1 byte. */
   moduleWidth: number;
   /** Module height in pixels, 1 byte. */
   moduleHeight: number;
@@ -60,8 +60,8 @@ export interface ReceiverWritable {
   grayMode?: number;
 }
 
-/** A reusable cabinet definition ("cabinet library" entry). All numbers are raw register values. */
-export interface CabinetProfile {
+/** A reusable module definition ("module library" entry). A cabinet is built from several modules; cabinet geometry lives in the layout feature. All numbers are raw register values. */
+export interface ModuleProfile {
   /** Unique within a library (case-insensitive), 1..64 characters. */
   name: string;
   width: number;
@@ -91,15 +91,15 @@ export interface ReceiverApi {
    * together because they share one register and a broadcast cannot read-modify-write.
    */
   setReceiverParameters(id: string, target: ReceiverTarget, params: ReceiverWritable): Promise<void>;
-  /** Write every field of a cabinet profile to the target card(s). Advanced level only. */
-  applyCabinetProfile(id: string, target: ReceiverTarget, profile: CabinetProfile): Promise<void>;
+  /** Write every field of a module profile to the target card(s). Advanced level only. */
+  applyModuleProfile(id: string, target: ReceiverTarget, profile: ModuleProfile): Promise<void>;
 }
 
 /** Every ReceiverApi method name; typed so a missing/extra name is a compile error. */
 export const RECEIVER_METHODS: { [K in keyof ReceiverApi]-?: true } = {
   getReceiverParameters: true,
   setReceiverParameters: true,
-  applyCabinetProfile: true,
+  applyModuleProfile: true,
 };
 
 // ---------------------------------------------------------------------------------------------
@@ -181,21 +181,21 @@ export function validateReceiverWritable(params: unknown, target?: ReceiverTarge
   return null;
 }
 
-export interface CabinetFieldError {
+export interface ModuleFieldError {
   field: string;
   message: string;
 }
 
-export type CabinetValidation =
-  | { ok: true; profile: CabinetProfile }
-  | { ok: false; errors: CabinetFieldError[] };
+export type ModuleValidation =
+  | { ok: true; profile: ModuleProfile }
+  | { ok: false; errors: ModuleFieldError[] };
 
 /**
- * Validate an unknown value as a CabinetProfile. On success returns a normalised copy (name and
+ * Validate an unknown value as a ModuleProfile. On success returns a normalised copy (name and
  * note trimmed, unknown keys dropped, empty optionals removed).
  */
-export function validateCabinetProfile(input: unknown): CabinetValidation {
-  const errors: CabinetFieldError[] = [];
+export function validateModuleProfile(input: unknown): ModuleValidation {
+  const errors: ModuleFieldError[] = [];
   if (typeof input !== 'object' || input === null || Array.isArray(input)) {
     return { ok: false, errors: [{ field: '', message: 'profile must be an object' }] };
   }
@@ -218,7 +218,7 @@ export function validateCabinetProfile(input: unknown): CabinetValidation {
     name = v.name.trim();
   }
 
-  const profile: CabinetProfile = {
+  const profile: ModuleProfile = {
     name,
     width: num('width', RECEIVER_LIMITS.size),
     height: num('height', RECEIVER_LIMITS.size),
@@ -245,14 +245,14 @@ export function validateCabinetProfile(input: unknown): CabinetValidation {
 // ---------------------------------------------------------------------------------------------
 // JSON (de)serialisation
 
-export const CABINET_LIBRARY_FORMAT = 'rockzalct.cabinet-library';
-export const CABINET_LIBRARY_VERSION = 1;
+export const MODULE_LIBRARY_FORMAT = 'rockzalct.module-library';
+export const MODULE_LIBRARY_VERSION = 1;
 
-export function serializeCabinetProfile(profile: CabinetProfile): string {
+export function serializeModuleProfile(profile: ModuleProfile): string {
   return JSON.stringify(profile, null, 2);
 }
 
-function parseJson(json: string): { ok: true; value: unknown } | { ok: false; errors: CabinetFieldError[] } {
+function parseJson(json: string): { ok: true; value: unknown } | { ok: false; errors: ModuleFieldError[] } {
   try {
     return { ok: true, value: JSON.parse(json) as unknown };
   } catch (err) {
@@ -260,39 +260,39 @@ function parseJson(json: string): { ok: true; value: unknown } | { ok: false; er
   }
 }
 
-export function parseCabinetProfileJson(json: string): CabinetValidation {
+export function parseModuleProfileJson(json: string): ModuleValidation {
   const parsed = parseJson(json);
-  return parsed.ok ? validateCabinetProfile(parsed.value) : parsed;
+  return parsed.ok ? validateModuleProfile(parsed.value) : parsed;
 }
 
-export function serializeCabinetLibrary(profiles: readonly CabinetProfile[]): string {
-  return JSON.stringify({ format: CABINET_LIBRARY_FORMAT, version: CABINET_LIBRARY_VERSION, profiles }, null, 2);
+export function serializeModuleLibrary(profiles: readonly ModuleProfile[]): string {
+  return JSON.stringify({ format: MODULE_LIBRARY_FORMAT, version: MODULE_LIBRARY_VERSION, profiles }, null, 2);
 }
 
-export type CabinetLibraryValidation =
-  | { ok: true; profiles: CabinetProfile[] }
-  | { ok: false; errors: CabinetFieldError[] };
+export type ModuleLibraryValidation =
+  | { ok: true; profiles: ModuleProfile[] }
+  | { ok: false; errors: ModuleFieldError[] };
 
 /** Validate a decoded library document; field names are prefixed `profiles[i].`. */
-export function validateCabinetLibrary(input: unknown): CabinetLibraryValidation {
+export function validateModuleLibrary(input: unknown): ModuleLibraryValidation {
   if (typeof input !== 'object' || input === null) {
     return { ok: false, errors: [{ field: '', message: 'library must be an object' }] };
   }
   const doc = input as Record<string, unknown>;
-  if (doc.format !== CABINET_LIBRARY_FORMAT) {
-    return { ok: false, errors: [{ field: 'format', message: `format must be "${CABINET_LIBRARY_FORMAT}"` }] };
+  if (doc.format !== MODULE_LIBRARY_FORMAT) {
+    return { ok: false, errors: [{ field: 'format', message: `format must be "${MODULE_LIBRARY_FORMAT}"` }] };
   }
-  if (doc.version !== CABINET_LIBRARY_VERSION) {
+  if (doc.version !== MODULE_LIBRARY_VERSION) {
     return { ok: false, errors: [{ field: 'version', message: `unsupported version ${String(doc.version)}` }] };
   }
   if (!Array.isArray(doc.profiles)) {
     return { ok: false, errors: [{ field: 'profiles', message: 'profiles must be an array' }] };
   }
-  const errors: CabinetFieldError[] = [];
-  const profiles: CabinetProfile[] = [];
+  const errors: ModuleFieldError[] = [];
+  const profiles: ModuleProfile[] = [];
   const seen = new Set<string>();
   doc.profiles.forEach((raw, i) => {
-    const res = validateCabinetProfile(raw);
+    const res = validateModuleProfile(raw);
     if (!res.ok) {
       for (const e of res.errors) errors.push({ field: `profiles[${i}].${e.field}`, message: e.message });
       return;
@@ -308,7 +308,7 @@ export function validateCabinetLibrary(input: unknown): CabinetLibraryValidation
   return errors.length > 0 ? { ok: false, errors } : { ok: true, profiles };
 }
 
-export function parseCabinetLibraryJson(json: string): CabinetLibraryValidation {
+export function parseModuleLibraryJson(json: string): ModuleLibraryValidation {
   const parsed = parseJson(json);
-  return parsed.ok ? validateCabinetLibrary(parsed.value) : parsed;
+  return parsed.ok ? validateModuleLibrary(parsed.value) : parsed;
 }

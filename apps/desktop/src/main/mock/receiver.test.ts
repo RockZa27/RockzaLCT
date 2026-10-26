@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DeviceError, type CabinetProfile, type DeviceApi } from '@rockzalct/shared';
+import { DeviceError, type ModuleProfile, type DeviceApi } from '@rockzalct/shared';
 import { createMockDevice, MOCK_ADVANCED_PASSWORD } from '../mockDevice';
 
 const ID = 'serial:COM3';
@@ -19,7 +19,7 @@ const codeOf = async (p: Promise<unknown>): Promise<string> => {
   throw new Error('expected rejection');
 };
 
-const PROFILE: CabinetProfile = {
+const PROFILE: ModuleProfile = {
   name: 'P2.5',
   width: 96,
   height: 48,
@@ -48,7 +48,7 @@ describe('mock receiver', () => {
     const api = await make();
     const card = { scope: 'card', portIndex: 0, cardIndex: 0 } as const;
     expect(await codeOf(api.setReceiverParameters(ID, card, { gamma: 20 }))).toBe('PERMISSION');
-    expect(await codeOf(api.applyCabinetProfile(ID, card, PROFILE))).toBe('PERMISSION');
+    expect(await codeOf(api.applyModuleProfile(ID, card, PROFILE))).toBe('PERMISSION');
     expect((await api.getReceiverParameters(ID, 0, 0)).gamma).toBe(28);
   });
 
@@ -60,7 +60,7 @@ describe('mock receiver', () => {
     expect(await api.getReceiverParameters(ID, 0, 0)).toMatchObject({ gamma: 20, grayMode: 3 });
     expect((await api.getReceiverParameters(ID, 0, 1)).gamma).toBe(28);
 
-    await api.applyCabinetProfile(ID, { scope: 'all' }, PROFILE);
+    await api.applyModuleProfile(ID, { scope: 'all' }, PROFILE);
     for (const c of [0, 1]) {
       expect(await api.getReceiverParameters(ID, 0, c)).toMatchObject({
         moduleWidth: 96,
@@ -79,6 +79,6 @@ describe('mock receiver', () => {
     const card = { scope: 'card', portIndex: 0, cardIndex: 0 } as const;
     expect(await codeOf(api.setReceiverParameters(ID, card, { gamma: 999 }))).toBe('INVALID_ARGUMENT');
     expect(await codeOf(api.setReceiverParameters(ID, { scope: 'all' }, { grayMode: 1 }))).toBe('INVALID_ARGUMENT');
-    expect(await codeOf(api.applyCabinetProfile(ID, card, { ...PROFILE, width: 0 }))).toBe('INVALID_ARGUMENT');
+    expect(await codeOf(api.applyModuleProfile(ID, card, { ...PROFILE, width: 0 }))).toBe('INVALID_ARGUMENT');
   });
 });
