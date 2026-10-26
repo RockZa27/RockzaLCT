@@ -1,0 +1,29 @@
+{
+  "name": "@rockzalct/device",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@novastar/codec": "^2.2.3",
+    "@novastar/native": "^2.5.1",
+    "@novastar/net": "^2.2.3",
+    "@novastar/serial": "^2.2.1",
+    "@rockzalct/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@rockzalct/simulator": "workspace:*"
+  }
+}

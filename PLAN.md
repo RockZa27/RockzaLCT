@@ -1,6 +1,6 @@
 # แผนพัฒนา RockzaLCT (ร่างฉบับที่ 2)
 
-> สถานะ: **ร่างเพื่อขอความเห็น ยังไม่ได้เริ่มเขียนโค้ด**
+> สถานะ: **กำลังพัฒนา** — ผู้ใช้อนุมัติให้ใช้ `@novastar/native` (สร้างจากการ decompile ไลบรารี .NET ของ NovaStar; รับทราบความเสี่ยงด้านลิขสิทธิ์แล้ว)
 > เป้าหมาย: สร้างโปรแกรมตั้งค่าและควบคุมจอ LED ที่ทำงานได้เทียบเท่า **NovaStar NovaLCT** เป็นของเราเอง ชื่อ RockzaLCT
 
 ## 1. ขอบเขตและหลักการ
@@ -9,7 +9,10 @@
 - **ไม่ต้องแกะโปรโตคอลเอง:** มีไลบรารีโอเพนซอร์สที่สื่อสารกับการ์ด NovaStar ได้แล้ว
   - `@novastar/codec`, `@novastar/serial`, `@novastar/net`, `@novastar/screen` (TypeScript, MIT) — github.com/sarakusha/novastar
   - `novastar-core` (Rust) — github.com/joele89/novastar-core
-- **ฮาร์ดแวร์เป้าหมาย:** การ์ดส่ง (sending card / controller) เช่น MCTRL300/660/700, ซีรีส์ VX / NovaPro และการ์ดรับ (receiving card) เช่น A5s, A8s, MRV ซีรีส์ (รุ่นที่รองรับจริงจะสรุปหลังทดสอบกับเครื่อง)
+- **ฮาร์ดแวร์ที่ผู้ใช้มี (ยืนยันแล้ว):** เชื่อมต่อทั้ง USB/COM และ LAN
+  - กลุ่ม 1 — การ์ดส่ง / ตัวประมวลผล (โปรโตคอล NovaStar ผ่าน `@novastar/native`): MCTRL300, MCTRL660, MCTRL700, VX400 Pro, VX600 Pro, VX1000 Pro, VX2000 Pro → **ทำก่อน**
+  - กลุ่ม 2 — Taurus (TU15 Pro, TU20 Pro, TB40, TB50, TB60): เป็น multimedia player ตั้งค่าจอผ่านโปรโตคอลเดียวกันได้บางส่วน ต้องตรวจทีละรุ่น
+  - กลุ่ม 3 — H5 (H series video splicer): มี API ของตัวเองแยก ทำทีหลัง
 
 ## 2. เทคโนโลยีที่เสนอ
 
