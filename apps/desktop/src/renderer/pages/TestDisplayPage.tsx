@@ -1,0 +1,65 @@
+import type { DisplayMode, TestPattern } from '@rockzalct/shared';
+import { useI18n } from '../i18n/I18nProvider';
+import { useApp } from '../state/AppContext';
+
+export const TEST_PATTERNS: readonly TestPattern[] = [
+  'off',
+  'red',
+  'green',
+  'blue',
+  'white',
+  'horizontal-lines',
+  'vertical-lines',
+  'slash',
+  'grayscale',
+];
+export const DISPLAY_MODES: readonly DisplayMode[] = ['normal', 'blackout', 'freeze'];
+
+export function TestDisplayPage() {
+  const { t } = useI18n();
+  const { connectedId, pattern, mode, setPattern, setMode } = useApp();
+  const disabled = connectedId === null;
+
+  return (
+    <section>
+      <h1>{t('test.title')}</h1>
+      {disabled && <p className="muted">{t('test.needConnect')}</p>}
+
+      <div className="card">
+        <h2>{t('test.patterns')}</h2>
+        <div className="btn-grid">
+          {TEST_PATTERNS.map((p) => (
+            <button
+              key={p}
+              type="button"
+              className={'choice' + (pattern === p ? ' selected' : '')}
+              aria-pressed={pattern === p}
+              disabled={disabled}
+              onClick={() => void setPattern(p)}
+            >
+              {t(`pattern.${p}`)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="card">
+        <h2>{t('test.modes')}</h2>
+        <div className="btn-grid">
+          {DISPLAY_MODES.map((m) => (
+            <button
+              key={m}
+              type="button"
+              className={'choice' + (mode === m ? ' selected' : '')}
+              aria-pressed={mode === m}
+              disabled={disabled}
+              onClick={() => void setMode(m)}
+            >
+              {t(`mode.${m}`)}
+            </button>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}

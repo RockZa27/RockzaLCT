@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "noEmit": true,
+    "declaration": false,
+    "types": ["node"]
+  },
+  "include": ["src/main", "src/preload", "src/common", "electron.vite.config.ts"],
+  "exclude": ["src/main/**/*.test.ts"]
+}
