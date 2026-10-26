@@ -18,6 +18,6 @@
 
 | งาน | Agent | คะแนน | ผล |
 |---|---|---|---|
-| packages/simulator | sonnet #1 | รอผล | |
-| packages/device | sonnet #2 | รอผล | |
-| apps/desktop | sonnet #3 | รอผล | |
+| packages/simulator | sonnet #1 | **9/10** | merge — 11/11 tests; Opus probe แยกด้วย client จริงยืนยันอ่าน/เขียนความสว่างข้าม connection ได้ (−1: ไฟล์เทสไม่ผ่าน typecheck) |
+| apps/desktop | sonnet #3 | **9/10** | merge — 30/30 tests, build ผ่าน; Opus render ใน Chromium แล้ว UI ภาษาไทยแสดงถูก ไม่มี console error (−1: ยังไม่ได้เปิดใน Electron จริง) |
+| packages/device | sonnet #2 | ไม่ให้คะแนน | ติดสิทธิ์ติดตั้ง `@novastar/native` — หยุดและรายงานตามจริง ไม่เดาค่าเอง (พฤติกรรมถูกต้อง) รอผู้ใช้ตัดสินใจ |
