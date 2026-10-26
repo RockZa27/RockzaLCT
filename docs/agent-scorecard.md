@@ -20,4 +20,11 @@
 |---|---|---|---|
 | packages/simulator | sonnet #1 | **9/10** | merge — 11/11 tests; Opus probe แยกด้วย client จริงยืนยันอ่าน/เขียนความสว่างข้าม connection ได้ (−1: ไฟล์เทสไม่ผ่าน typecheck) |
 | apps/desktop | sonnet #3 | **9/10** | merge — 30/30 tests, build ผ่าน; Opus render ใน Chromium แล้ว UI ภาษาไทยแสดงถูก ไม่มี console error (−1: ยังไม่ได้เปิดใน Electron จริง) |
-| packages/device | sonnet #2 | ไม่ให้คะแนน | ติดสิทธิ์ติดตั้ง `@novastar/native` — หยุดและรายงานตามจริง ไม่เดาค่าเอง (พฤติกรรมถูกต้อง) รอผู้ใช้ตัดสินใจ |
+| packages/device | sonnet #2 | ไม่ให้คะแนน → **ทิ้ง** | ติดสิทธิ์ติดตั้ง `@novastar/native` — หยุดและรายงานตามจริง (พฤติกรรมถูกต้อง) ยังไม่มีโค้ด จึงลบทิ้ง |
+
+## ผลรอบที่ 2
+
+| งาน | Agent | คะแนน | ผล |
+|---|---|---|---|
+| packages/device | sonnet #4 (ตัวใหม่, prompt ปรับปรุง) | 7/10 → แก้แล้ว **8/10** | ส่งครั้งแรก: Opus ตรวจพบว่ารายงาน "ไม่มีคำสั่งจอดำ" ผิด (`SetKillMode`/`SetLockMode` มีอยู่) และ freeze ผูกกับคำสั่งผิดตัวด้วยการเดา → ส่งกลับแก้เฉพาะจุด → แก้ถูก 28/28 tests → merge (−2: วิจัยไลบรารีไม่ครบรอบแรก; ค่า byte จอดำ/หยุดภาพยังไม่ยืนยันกับเครื่องจริง) |
+| ต่อหน้าจอเข้ากับการ์ดจริง | Opus (ทำเอง) | — | เพิ่ม backend `real` / `sim`; พบและแก้บั๊ก bundle ของ Electron main ที่ require แพ็กเกจที่หาไม่เจอ (เทสหน่วยจับไม่ได้) ; ทดสอบ bundle ที่ build จริงผ่าน IPC → device → TCP → simulator |

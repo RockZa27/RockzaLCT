@@ -20,9 +20,27 @@ importers:
 
   apps/desktop:
     dependencies:
+      '@novastar/codec':
+        specifier: ^2.2.3
+        version: 2.2.3(debug@4.4.3)(iconv-lite@0.6.3)
+      '@novastar/native':
+        specifier: ^2.5.1
+        version: 2.5.1(debug@4.4.3)(iconv-lite@0.6.3)
+      '@novastar/net':
+        specifier: ^2.2.3
+        version: 2.2.3(debug@4.4.3)(iconv-lite@0.6.3)
+      '@novastar/serial':
+        specifier: ^2.2.1
+        version: 2.2.1(debug@4.4.3)(iconv-lite@0.6.3)
+      '@rockzalct/device':
+        specifier: workspace:*
+        version: link:../../packages/device
       '@rockzalct/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@rockzalct/simulator':
+        specifier: workspace:*
+        version: link:../../packages/simulator
     devDependencies:
       '@testing-library/jest-dom':
         specifier: ^6.6.3

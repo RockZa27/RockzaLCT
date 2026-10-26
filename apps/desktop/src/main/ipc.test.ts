@@ -56,9 +56,21 @@ describe('ipc', () => {
 });
 
 describe('getDeviceApi', () => {
-  it('defaults to the mock and rejects unknown names', () => {
+  it('defaults to the real service and rejects unknown names', () => {
     expect(typeof getDeviceApi(undefined).discover).toBe('function');
     expect(typeof getDeviceApi('mock').connect).toBe('function');
-    expect(() => getDeviceApi('nope')).toThrow(/Available: mock/);
+    expect(() => getDeviceApi('nope')).toThrow(/Available: real, sim, mock/);
+  });
+
+  it('sim back-end drives the real device service over TCP end to end', async () => {
+    const api = getDeviceApi('sim');
+    const [found] = await api.discover();
+    expect(found?.id).toMatch(/^net:127\.0\.0\.1:\d+$/);
+    const info = await api.connect(found!.id);
+    expect(info.receivingCards.length).toBeGreaterThan(0);
+    await api.setBrightness(found!.id, { percent: 30 });
+    expect((await api.getBrightness(found!.id)).percent).toBe(30);
+    await api.setDisplayMode(found!.id, 'blackout');
+    await api.disconnect(found!.id);
   });
 });

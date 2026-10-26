@@ -11,7 +11,13 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@rockzalct/shared": "workspace:*"
+    "@novastar/codec": "^2.2.3",
+    "@novastar/native": "^2.5.1",
+    "@novastar/net": "^2.2.3",
+    "@novastar/serial": "^2.2.1",
+    "@rockzalct/device": "workspace:*",
+    "@rockzalct/shared": "workspace:*",
+    "@rockzalct/simulator": "workspace:*"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.6.3",
