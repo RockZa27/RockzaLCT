@@ -1,9 +1,10 @@
-# สรุปโปรเจกต์ RockzaLCT (ถึง v0.1.1 + นำเข้าไฟล์ NovaLCT)
+# สรุปโปรเจกต์ RockzaLCT (ถึง v0.1.2 + นำเข้าไฟล์ NovaLCT)
 
 โปรแกรมตั้งค่าและควบคุมจอ LED เทียบเท่า NovaStar NovaLCT เขียนใหม่ทั้งหมด (Electron + React + TypeScript)
 Repo: `RockZa27/RockzaLCT` · branch งาน `claude/rockzalct-plan` · `main` = `c190de0`
 Release: https://github.com/RockZa27/RockzaLCT/releases/tag/v0.1.0 (pre-release, ไฟล์ `RockzaLCT-Setup-0.1.0.exe`)
 v0.1.1: เพิ่มหน้า Smart Settings (ยังไม่ได้ทดสอบกับจอจริง — ดูคู่มือข้อ 18)
+v0.1.2: นำเข้าไฟล์ .rcfgx / .scr ของ NovaLCT (ยังไม่ได้ทดสอบกับเครื่องจริง — ดูคู่มือข้อ 19)
 
 ## รองรับอะไรแล้ว
 
