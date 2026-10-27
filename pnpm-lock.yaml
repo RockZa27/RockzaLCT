@@ -32,6 +32,9 @@ importers:
       '@novastar/serial':
         specifier: ^2.2.1
         version: 2.2.1(debug@4.4.3)(iconv-lite@0.6.3)
+      '@novastar/taurus':
+        specifier: 0.4.1
+        version: 0.4.1(debug@4.4.3)(iconv-lite@0.6.3)
       '@rockzalct/device':
         specifier: workspace:*
         version: link:../../packages/device
@@ -99,6 +102,9 @@ importers:
       '@novastar/serial':
         specifier: ^2.2.1
         version: 2.2.1(debug@4.4.3)(iconv-lite@0.6.3)
+      '@novastar/taurus':
+        specifier: 0.4.1
+        version: 0.4.1(debug@4.4.3)(iconv-lite@0.6.3)
       '@rockzalct/shared':
         specifier: workspace:*
         version: link:../shared
@@ -637,6 +643,9 @@ packages:
     resolution: {integrity: sha512-7iAPuNVqsKlIoeibVhQs2lOSa254tJDDTxw/DxQMS7+c39orIymRs+SK1DnKSXtPHLJ2Uxalh8FSuMz+FpjNqA==}
     peerDependencies:
       debug: ^4.3.3
+
+  '@novastar/taurus@0.4.1':
+    resolution: {integrity: sha512-7+LVLdvx8ceGCI7rLJKCTIiKVmFPYJYBwEua7mCmW7b/zXMoYbyIKweuU8XdxZAgVFgGL0JOZyILkanm9l2Oyw==}
 
   '@npmcli/fs@2.1.2':
     resolution: {integrity: sha512-yOJKRvohFOaLqipNtwYB9WugyZKhC/DZC4VYPmpaCzDBrA8YpK3qHZ8/HGscMnE4GqbkLNuVcCnxkeQEdGt6LQ==}
@@ -3220,6 +3229,15 @@ snapshots:
       - buffer
       - iconv-lite
       - supports-color
+
+  '@novastar/taurus@0.4.1(debug@4.4.3)(iconv-lite@0.6.3)':
+    dependencies:
+      '@novastar/codec': 2.2.3(debug@4.4.3)(iconv-lite@0.6.3)
+      typed-struct: 2.7.3(debug@4.4.3)(iconv-lite@0.6.3)
+    transitivePeerDependencies:
+      - buffer
+      - debug
+      - iconv-lite
 
   '@npmcli/fs@2.1.2':
     dependencies:

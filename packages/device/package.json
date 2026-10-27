@@ -21,6 +21,7 @@
     "@novastar/native": "^2.5.1",
     "@novastar/net": "^2.2.3",
     "@novastar/serial": "^2.2.1",
+    "@novastar/taurus": "0.4.1",
     "@rockzalct/shared": "workspace:*"
   },
   "devDependencies": {
