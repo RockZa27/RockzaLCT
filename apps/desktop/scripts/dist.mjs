@@ -17,9 +17,9 @@
 //
 // Native modules: @novastar/serial -> serialport -> @serialport/bindings-cpp ships
 // N-API prebuilds (prebuilds/win32-x64/*.node, ABI-stable across Electron
-// versions). They are asar-unpacked (see "asarUnpack"). electron-builder's
-// npmRebuild additionally runs @electron/rebuild; set ROCKZALCT_SKIP_REBUILD=1
-// to skip that (e.g. offline sandboxes without Electron headers).
+// versions). They are asar-unpacked (see "asarUnpack"), so npmRebuild is off:
+// compiling from source would only add a toolchain dependency on CI.
+// ROCKZALCT_SKIP_REBUILD=1 is kept as an explicit override.
 //
 // Usage: node scripts/dist.mjs [electron-builder args...]   (e.g. --win nsis --x64)
 import { spawnSync } from 'node:child_process';

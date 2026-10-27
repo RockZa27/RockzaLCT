@@ -25,3 +25,15 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
+      # Unit tests can't catch a bundle that crashes inside Electron's own Node (native modules,
+      # require of ESM). Package the app and boot it for real against the in-process simulator.
+      - name: Smoke-test the packaged app
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: ""
+          ROCKZALCT_SKIP_REBUILD: "1"
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq xvfb
+          pnpm --filter @rockzalct/desktop pack:dir
+          cd apps/desktop/release/linux-unpacked
+          timeout 90 xvfb-run -a ./@rockzalctdesktop --sim --smoke-test --no-sandbox 2>&1 | tee smoke.log
+          grep -q "SMOKE OK" smoke.log
