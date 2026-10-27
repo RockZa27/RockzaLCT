@@ -20,6 +20,20 @@ const codeOf = async (p: Promise<unknown>): Promise<string> => {
 };
 
 describe('mock persist', () => {
+  it('reads back edits made through the device receiver API (shared mock state)', async () => {
+    const api = await make(true);
+    const { config } = await api.readScreenConfig(ID);
+    const card = config.receivers[0]!;
+    const gamma = card.gamma === 40 ? 41 : 40;
+    await api.setReceiverParameters(
+      ID,
+      { scope: 'card', portIndex: card.portIndex, cardIndex: card.cardIndex },
+      { gamma },
+    );
+    const back = (await api.readScreenConfig(ID)).config.receivers[0]!;
+    expect(back.gamma).toBe(gamma);
+  });
+
   it('reads a complete, loadable snapshot of the fake controller', async () => {
     const api = await make();
     const res = await api.readScreenConfig(ID);

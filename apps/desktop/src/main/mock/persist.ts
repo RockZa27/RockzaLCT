@@ -1,4 +1,11 @@
-import { DeviceError, createPersistApi, type PersistApi } from '@rockzalct/shared';
+import {
+  DeviceError,
+  createPersistApi,
+  type LayoutApi,
+  type PersistApi,
+  type ReceiverApi,
+  type SenderApi,
+} from '@rockzalct/shared';
 import type { MockContext } from './context';
 import { createMockLayout } from './layout';
 import { createMockReceiver } from './receiver';
@@ -17,7 +24,14 @@ const FAKE_CONTROLLERS: Record<string, { model: string; firmwareVersion: string 
  * not visible here (the mock device builds each feature separately), but this feature's own writes
  * and reads are consistent with each other.
  */
-export function createMockPersist(ctx: MockContext): PersistApi {
+/** Feature instances to read from / write to; pass the device's own so edits on other pages are seen. */
+export interface MockPersistPeers {
+  sender: SenderApi;
+  receiver: ReceiverApi;
+  layout: LayoutApi;
+}
+
+export function createMockPersist(ctx: MockContext, peers?: MockPersistPeers): PersistApi {
   /** Cards "saved to flash" per controller, as `port:card`; the sender as `sender`. */
   const flash = new Map<string, Set<string>>();
   const mark = (id: string, what: string): void => {
@@ -27,9 +41,9 @@ export function createMockPersist(ctx: MockContext): PersistApi {
   };
 
   return createPersistApi({
-    sender: createMockSender(ctx),
-    receiver: createMockReceiver(ctx),
-    layout: createMockLayout(ctx),
+    sender: peers?.sender ?? createMockSender(ctx),
+    receiver: peers?.receiver ?? createMockReceiver(ctx),
+    layout: peers?.layout ?? createMockLayout(ctx),
     isAdvanced: () => ctx.isAdvanced(),
     makeError: (code, message) => new DeviceError(code, message),
     async readController(id) {

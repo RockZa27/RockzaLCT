@@ -128,11 +128,15 @@ export function createMockDevice(options: MockDeviceOptions = {}): DeviceApi {
     isAdvanced: () => advanced,
   };
 
+  const sender = createMockSender(ctx);
+  const receiver = createMockReceiver(ctx);
+  const layout = createMockLayout(ctx);
+
   return {
-    ...createMockSender(ctx),
-    ...createMockReceiver(ctx),
-    ...createMockLayout(ctx),
-    ...createMockPersist(ctx),
+    ...sender,
+    ...receiver,
+    ...layout,
+    ...createMockPersist(ctx, { sender, receiver, layout }),
     ...createMockMonitor(ctx),
     async discover(opts) {
       await delay();
