@@ -3,8 +3,17 @@ name: Release (Windows)
 on:
   workflow_dispatch:
   push:
+    # A push to main makes a draft release for the version in apps/desktop/package.json if none
+    # exists yet; a v* tag (pushed by a person) does the same for that tag.
+    branches:
+      - main
     tags:
       - "v*"
+
+# Two pushes in a row must not race to create the same release.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 # Nothing is writable by default; only the publish job below asks for contents: write.
 permissions:
@@ -69,7 +78,7 @@ jobs:
   # already-tested installer and creates a DRAFT release for a human to review and publish.
   publish:
     needs: build
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -84,6 +93,26 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           ls -la dist
-          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 \
-            || gh release create "$GITHUB_REF_NAME" --draft --title "$GITHUB_REF_NAME" --generate-notes
-          gh release upload "$GITHUB_REF_NAME" dist/RockzaLCT-Setup-*.exe --clobber
+          exe=$(ls dist/RockzaLCT-Setup-*.exe | head -n1)
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            tag="$GITHUB_REF_NAME"
+          else
+            # The version comes from the tested installer's file name (no project code runs here).
+            version=$(basename "$exe" .exe)
+            version=${version#RockzaLCT-Setup-}
+            if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "unexpected installer name: $exe" >&2
+              exit 1
+            fi
+            tag="v$version"
+            # Never replace the installer of an existing release from a branch push: bump the
+            # version in apps/desktop/package.json to make a new one.
+            if gh release view "$tag" >/dev/null 2>&1; then
+              echo "release $tag already exists; nothing to do"
+              exit 0
+            fi
+          fi
+          # A draft does not create its tag until a person publishes it, at --target.
+          gh release view "$tag" >/dev/null 2>&1 \
+            || gh release create "$tag" --draft --target "$GITHUB_SHA" --title "$tag" --generate-notes
+          gh release upload "$tag" "$exe" --clobber
