@@ -160,10 +160,18 @@ describe('HSeriesClient over real UDP', () => {
     const probe = await rawServer(() => {});
     const port = probe.port;
     await probe.close(); // the port is now closed
-    const client = new HSeriesClient({ host: '127.0.0.1', port, timeoutMs: 1000, retries: 2 });
+    const client = new HSeriesClient({ host: '127.0.0.1', port, timeoutMs: 300, retries: 2 });
     const t0 = Date.now();
-    expect(await codeOf(client.request(reqInitStatus()))).toBe('PROTOCOL');
-    expect(Date.now() - t0).toBeLessThan(900);
+    if (process.platform === 'win32') {
+      // Node/libuv disables UDP connection-reset reporting on Windows (SIO_UDP_CONNRESET), so a closed
+      // port is never reported: the client can only time out, after its retries.
+      expect(await codeOf(client.request(reqInitStatus()))).toBe('TIMEOUT');
+      expect(Date.now() - t0).toBeLessThan(3000);
+    } else {
+      // Elsewhere the ICMP port-unreachable surfaces as ECONNREFUSED, so the client fails fast.
+      expect(await codeOf(client.request(reqInitStatus()))).toBe('PROTOCOL');
+      expect(Date.now() - t0).toBeLessThan(300);
+    }
     client.close();
     expect(await codeOf(client.request(reqInitStatus()))).toBe('NOT_CONNECTED');
   });

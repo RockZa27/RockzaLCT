@@ -157,16 +157,21 @@ describe('Taurus discovery', () => {
     expect(bad.lastDiscoveryErrors).toEqual([{ target: 'taurus-udp', message: 'no interface' }]);
   });
 
-  const hasInterface = Object.values(networkInterfaces()).some((l) => l?.some((i) => i.family === 'IPv4' && !i.internal));
+  // The library binds one socket per external IPv4 interface and sends from it, so the target must be
+  // reachable from that interface: Windows does not route an interface-bound socket to 127.0.0.1.
+  const externalIPv4 = Object.values(networkInterfaces())
+    .flat()
+    .find((i) => i?.family === 'IPv4' && !i.internal)?.address;
+  const hasInterface = externalIPv4 !== undefined;
   it.skipIf(!hasInterface)('the unmodified library discoverTaurusPlayers() reaches the simulator on UDP 16601', async () => {
     let sim: TaurusSimulatorHandle;
     try {
-      sim = await startSim({ discoveryPort: 16601 });
+      sim = await startSim({ discoveryPort: 16601, host: externalIPv4! });
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code === 'EADDRINUSE') return; // port taken on this machine
       throw err;
     }
-    const players = await taurusLib.discoverTaurusPlayers('127.0.0.1', 600);
+    const players = await taurusLib.discoverTaurusPlayers(externalIPv4!, 600);
     expect(players.map((p) => p.sn)).toEqual([sim.state.sn]);
     expect(players[0]).toMatchObject({ productName: 'TB60', tcpPort: sim.port });
   });
