@@ -1,7 +1,244 @@
 export const calibrationEn = {
   'nav.calibration': 'Calibration',
+  'cal.title': 'Calibration',
+  'cal.needConnect': 'Connect to a controller first.',
+  'cal.noCards': 'No receiving cards were found.',
+  'cal.intro':
+    'Manage the calibration coefficients stored in a receiving card: see whether calibration is on, switch it, back the coefficients up to a file and restore them. This page does not measure the screen with a camera.',
+  'cal.advancedOnly':
+    'Uploading, storing, reloading and erasing coefficients need an advanced login. Reading, backing up to a file and switching calibration on or off are always allowed.',
+  'cal.picker': 'Receiving card',
+  'cal.pickerOption': 'Port {port} / Card {card} ({model})',
+  'cal.target.card': 'port {port} / card {card}',
+  'cal.target.all': 'all receiving cards',
+  'cal.unavailable': 'not available',
+  'cal.cancel': 'Cancel transfer',
+  'cal.confirm.ok': 'Yes, continue',
+  'cal.confirm.cancel': 'No, go back',
+
+  // --- state ------------------------------------------------------------------------------
+  'cal.state.title': 'Calibration state',
+  'cal.state.reload': 'Read again',
+  'cal.state.loading': 'Reading…',
+  'cal.state.enabled': 'Calibration',
+  'cal.state.on': 'On',
+  'cal.state.off': 'Off',
+  'cal.state.type': 'Type',
+  'cal.type.chroma': 'Chroma',
+  'cal.type.brightness': 'Brightness',
+  'cal.state.source': 'Coefficient source',
+  'cal.source.scan-board-flash': 'Receiving card flash',
+  'cal.source.module-flash': 'Module flash',
+  'cal.source.unknown': 'Unknown',
+  'cal.state.data': 'Coefficient memory (first block)',
+  'cal.data.empty': 'Empty (all 0x00)',
+  'cal.data.erased': 'Erased (all 0xFF)',
+  'cal.data.data': 'Contains data',
+  'cal.state.raw': 'State byte',
+  'cal.state.unverified':
+    'The meaning of the bits of the state byte is taken from the device library code and has not been verified on real hardware.',
+
+  // --- switch -----------------------------------------------------------------------------
+  'cal.enable.title': 'Switch calibration',
+  'cal.enable.type': 'Type to apply',
+  'cal.enable.all': 'All receiving cards',
+  'cal.enable.on': 'Turn on',
+  'cal.enable.off': 'Turn off',
+  'cal.enable.onDone': 'Calibration turned on for {target}.',
+  'cal.enable.offDone': 'Calibration turned off for {target}.',
+
+  // --- download ---------------------------------------------------------------------------
+  'cal.dl.title': 'Back up coefficients to a file',
+  'cal.dl.desc':
+    'Reads the coefficient memory of the selected card block by block and saves it as a .json file that can be uploaded again.',
+  'cal.dl.offset': 'Start offset (bytes)',
+  'cal.dl.length': 'Length (bytes)',
+  'cal.dl.full': 'Whole coefficient memory ({size} bytes)',
+  'cal.dl.button': 'Download from card',
+  'cal.dl.running': 'Reading… {done} / {total} bytes',
+  'cal.dl.done': 'Saved {bytes} bytes to {file}.',
+  'cal.dl.stopped': 'Stopped after {done} of {total} bytes. No file was saved.',
+  'cal.dl.failed': 'Reading failed at offset {offset}: {reason}. No file was saved.',
+  'cal.dl.invalidRange': 'Offset and length must be whole numbers inside the {size}-byte coefficient memory.',
+
+  // --- upload -----------------------------------------------------------------------------
+  'cal.up.title': 'Upload coefficients from a file',
+  'cal.up.file': 'Coefficient file (.json)',
+  'cal.up.invalid': 'This file cannot be used: {reason}',
+  'cal.up.summary':
+    'Saved {when} from {model} firmware {firmware}: port {port} / card {card}, offset {offset}, {bytes} bytes, checksum correct.',
+  'cal.up.otherCard': 'This file was saved from another card: {reason}. Write it to the selected card anyway',
+  'cal.up.backup': "Back up the card's current coefficients to a file before uploading (recommended)",
+  'cal.up.noBackupWarn': 'Without a backup, the current coefficients are lost if the upload goes wrong.',
+  'cal.up.button': 'Upload to card…',
+  'cal.up.confirmTitle': 'Upload coefficients?',
+  'cal.up.confirmBody':
+    'The coefficients in the file will be written to {target}, replacing {bytes} bytes of its current coefficients. Do not switch the controller off while uploading.',
+  'cal.up.confirmBackup': 'A backup file of the current coefficients is saved first.',
+  'cal.up.confirmNoBackup': 'No backup will be made.',
+  'cal.up.backingUp': 'Backing up the current coefficients… {done} / {total} bytes',
+  'cal.up.uploading': 'Uploading… {done} / {total} bytes',
+  'cal.up.backupSaved': 'Backup saved to {file}.',
+  'cal.up.backupFailed': 'The backup could not be completed ({reason}). Nothing was written to the card.',
+  'cal.up.ok': 'Uploaded {bytes} bytes to {target}.',
+  'cal.up.partial': 'The upload did not finish ({reason}). The card is PARTLY WRITTEN.',
+  'cal.up.written': 'Byte ranges written: {ranges}',
+  'cal.up.nothingWritten': 'Nothing was written to the card.',
+  'cal.up.failedBlock': 'Failed at offset {offset} ({length} bytes): {reason}',
+  'cal.up.recover': 'Upload the file again to finish, or upload the backup file to go back.',
+  'cal.up.cancelledReason': 'cancelled',
+
+  // --- flash ------------------------------------------------------------------------------
+  'cal.flash.title': 'Flash memory of the card',
+  'cal.flash.desc':
+    'Coefficients written to a card are active at once but are only kept after power-off once they are stored in its flash.',
+  'cal.flash.set': 'Coefficient set',
+  'cal.flash.set.standard': 'Standard',
+  'cal.flash.set.multi-layer': 'Multi-layer',
+  'cal.flash.save': 'Store to flash…',
+  'cal.flash.reload': 'Reload from flash…',
+  'cal.flash.erase': 'Erase flash…',
+  'cal.flash.saveTitle': 'Store coefficients to flash?',
+  'cal.flash.saveBody': 'The active coefficients of {target} ({set}) will be copied into its flash memory, replacing what is stored there.',
+  'cal.flash.reloadTitle': 'Reload coefficients from flash?',
+  'cal.flash.reloadBody':
+    'The coefficients stored in the flash of {target} ({set}) will replace its active coefficients. Coefficients that were not stored (for example just uploaded) are lost.',
+  'cal.flash.eraseTitle': 'Erase coefficients in flash?',
+  'cal.flash.eraseBody':
+    'The coefficients stored in the flash of {target} will be ERASED. This cannot be undone. Download a backup file first.',
+  'cal.flash.eraseUnverified':
+    'The value sent by the erase command is not documented by the device library and has not been verified on real hardware.',
+  'cal.flash.done': 'Done for {target}.',
+
+  // --- unsupported ------------------------------------------------------------------------
+  'cal.unsupported.title': 'Not offered',
+  'cal.unsupported.intro': 'These parts of NovaLCT calibration are not available, and why:',
+  'cal.unsupported.searched': 'Searched for: {terms}',
+  'cal.unsupported.bright-dark-line-fix':
+    'Seam / bright-dark line fix: the library has commands (SetBrightDarkLineFixState, SaveBrightDarkLineFixCoefsToFlash, SetBrightDarkLineCoefsErase) but documents no value for them, and the fix state shares one register with the calibration switch, so a wrong byte would also turn calibration off. The raw state byte is shown above.',
+  'cal.unsupported.area-adjust':
+    'Selected-area adjustment: the library only offers a 41-byte command (SetAreaCoefsOperate) whose layout is not documented.',
+  'cal.unsupported.slave-flash':
+    'Slave-flash backup copy ("solidify" / "factory"): the library commands exist but what the slave flash holds is not documented.',
+  'cal.unsupported.iic-flash': 'I2C / module flash storage: what these commands act on is not documented.',
+  'cal.unsupported.camera': 'Camera based measurement and calculation of new coefficients is outside this program.',
 } as const;
 
 export const calibrationTh: Record<keyof typeof calibrationEn, string> = {
   'nav.calibration': 'คาลิเบรต',
+  'cal.title': 'คาลิเบรต',
+  'cal.needConnect': 'เชื่อมต่อกับตัวควบคุมก่อน',
+  'cal.noCards': 'ไม่พบการ์ดรับ',
+  'cal.intro':
+    'จัดการค่าสัมประสิทธิ์คาลิเบรตที่เก็บในการ์ดรับ: ดูว่าคาลิเบรตเปิดอยู่หรือไม่ เปิด/ปิด สำรองค่าลงไฟล์ และกู้คืน หน้านี้ไม่ได้วัดจอด้วยกล้อง',
+  'cal.advancedOnly':
+    'การอัปโหลด บันทึก โหลดใหม่ และลบค่าสัมประสิทธิ์ ต้องเข้าสู่ระบบขั้นสูง ส่วนการอ่าน การสำรองลงไฟล์ และการเปิด/ปิดคาลิเบรตทำได้เสมอ',
+  'cal.picker': 'การ์ดรับ',
+  'cal.pickerOption': 'พอร์ต {port} / การ์ด {card} ({model})',
+  'cal.target.card': 'พอร์ต {port} / การ์ด {card}',
+  'cal.target.all': 'การ์ดรับทุกใบ',
+  'cal.unavailable': 'ไม่มีข้อมูล',
+  'cal.cancel': 'ยกเลิกการถ่ายโอน',
+  'cal.confirm.ok': 'ใช่ ดำเนินการต่อ',
+  'cal.confirm.cancel': 'ไม่ ย้อนกลับ',
+
+  'cal.state.title': 'สถานะคาลิเบรต',
+  'cal.state.reload': 'อ่านอีกครั้ง',
+  'cal.state.loading': 'กำลังอ่าน…',
+  'cal.state.enabled': 'คาลิเบรต',
+  'cal.state.on': 'เปิด',
+  'cal.state.off': 'ปิด',
+  'cal.state.type': 'ชนิด',
+  'cal.type.chroma': 'สี (Chroma)',
+  'cal.type.brightness': 'ความสว่าง (Brightness)',
+  'cal.state.source': 'แหล่งค่าสัมประสิทธิ์',
+  'cal.source.scan-board-flash': 'แฟลชของการ์ดรับ',
+  'cal.source.module-flash': 'แฟลชของโมดูล',
+  'cal.source.unknown': 'ไม่ทราบ',
+  'cal.state.data': 'หน่วยความจำค่าสัมประสิทธิ์ (บล็อกแรก)',
+  'cal.data.empty': 'ว่าง (เป็น 0x00 ทั้งหมด)',
+  'cal.data.erased': 'ถูกลบ (เป็น 0xFF ทั้งหมด)',
+  'cal.data.data': 'มีข้อมูล',
+  'cal.state.raw': 'ไบต์สถานะ',
+  'cal.state.unverified':
+    'ความหมายของแต่ละบิตในไบต์สถานะอ่านจากโค้ดของไลบรารีอุปกรณ์ และยังไม่ได้ยืนยันกับเครื่องจริง',
+
+  'cal.enable.title': 'เปิด/ปิดคาลิเบรต',
+  'cal.enable.type': 'ชนิดที่จะใช้',
+  'cal.enable.all': 'การ์ดรับทุกใบ',
+  'cal.enable.on': 'เปิด',
+  'cal.enable.off': 'ปิด',
+  'cal.enable.onDone': 'เปิดคาลิเบรตให้ {target} แล้ว',
+  'cal.enable.offDone': 'ปิดคาลิเบรตให้ {target} แล้ว',
+
+  'cal.dl.title': 'สำรองค่าสัมประสิทธิ์ลงไฟล์',
+  'cal.dl.desc':
+    'อ่านหน่วยความจำค่าสัมประสิทธิ์ของการ์ดที่เลือกทีละบล็อก แล้วบันทึกเป็นไฟล์ .json ที่อัปโหลดกลับได้',
+  'cal.dl.offset': 'ตำแหน่งเริ่มต้น (ไบต์)',
+  'cal.dl.length': 'ความยาว (ไบต์)',
+  'cal.dl.full': 'หน่วยความจำค่าสัมประสิทธิ์ทั้งหมด ({size} ไบต์)',
+  'cal.dl.button': 'ดาวน์โหลดจากการ์ด',
+  'cal.dl.running': 'กำลังอ่าน… {done} / {total} ไบต์',
+  'cal.dl.done': 'บันทึก {bytes} ไบต์ลงไฟล์ {file} แล้ว',
+  'cal.dl.stopped': 'หยุดหลังอ่านได้ {done} จาก {total} ไบต์ ไม่ได้บันทึกไฟล์',
+  'cal.dl.failed': 'อ่านล้มเหลวที่ตำแหน่ง {offset}: {reason} ไม่ได้บันทึกไฟล์',
+  'cal.dl.invalidRange': 'ตำแหน่งเริ่มต้นและความยาวต้องเป็นจำนวนเต็มภายในหน่วยความจำค่าสัมประสิทธิ์ {size} ไบต์',
+
+  'cal.up.title': 'อัปโหลดค่าสัมประสิทธิ์จากไฟล์',
+  'cal.up.file': 'ไฟล์ค่าสัมประสิทธิ์ (.json)',
+  'cal.up.invalid': 'ใช้ไฟล์นี้ไม่ได้: {reason}',
+  'cal.up.summary':
+    'บันทึกเมื่อ {when} จาก {model} เฟิร์มแวร์ {firmware}: พอร์ต {port} / การ์ด {card} ตำแหน่ง {offset} ขนาด {bytes} ไบต์ ค่าตรวจสอบถูกต้อง',
+  'cal.up.otherCard': 'ไฟล์นี้บันทึกมาจากการ์ดใบอื่น: {reason} ต้องการเขียนลงการ์ดที่เลือกอยู่ต่อไป',
+  'cal.up.backup': 'สำรองค่าปัจจุบันของการ์ดลงไฟล์ก่อนอัปโหลด (แนะนำ)',
+  'cal.up.noBackupWarn': 'ถ้าไม่สำรอง ค่าปัจจุบันจะหายไปหากการอัปโหลดผิดพลาด',
+  'cal.up.button': 'อัปโหลดลงการ์ด…',
+  'cal.up.confirmTitle': 'อัปโหลดค่าสัมประสิทธิ์?',
+  'cal.up.confirmBody':
+    'ค่าสัมประสิทธิ์ในไฟล์จะถูกเขียนลง {target} แทนที่ค่าปัจจุบัน {bytes} ไบต์ ห้ามปิดตัวควบคุมระหว่างอัปโหลด',
+  'cal.up.confirmBackup': 'ระบบจะบันทึกไฟล์สำรองของค่าปัจจุบันก่อน',
+  'cal.up.confirmNoBackup': 'จะไม่มีการสำรองค่าปัจจุบัน',
+  'cal.up.backingUp': 'กำลังสำรองค่าปัจจุบัน… {done} / {total} ไบต์',
+  'cal.up.uploading': 'กำลังอัปโหลด… {done} / {total} ไบต์',
+  'cal.up.backupSaved': 'บันทึกไฟล์สำรองเป็น {file} แล้ว',
+  'cal.up.backupFailed': 'สำรองค่าไม่สำเร็จ ({reason}) ยังไม่ได้เขียนอะไรลงการ์ด',
+  'cal.up.ok': 'อัปโหลด {bytes} ไบต์ลง {target} แล้ว',
+  'cal.up.partial': 'อัปโหลดไม่เสร็จ ({reason}) การ์ดถูกเขียนเพียงบางส่วน',
+  'cal.up.written': 'ช่วงไบต์ที่เขียนแล้ว: {ranges}',
+  'cal.up.nothingWritten': 'ยังไม่ได้เขียนอะไรลงการ์ด',
+  'cal.up.failedBlock': 'ล้มเหลวที่ตำแหน่ง {offset} ({length} ไบต์): {reason}',
+  'cal.up.recover': 'อัปโหลดไฟล์ซ้ำเพื่อให้เสร็จ หรืออัปโหลดไฟล์สำรองเพื่อย้อนกลับ',
+  'cal.up.cancelledReason': 'ยกเลิกโดยผู้ใช้',
+
+  'cal.flash.title': 'หน่วยความจำแฟลชของการ์ด',
+  'cal.flash.desc':
+    'ค่าสัมประสิทธิ์ที่เขียนลงการ์ดมีผลทันที แต่จะอยู่ต่อหลังปิดเครื่องได้ก็ต่อเมื่อบันทึกลงแฟลชของการ์ดแล้ว',
+  'cal.flash.set': 'ชุดค่าสัมประสิทธิ์',
+  'cal.flash.set.standard': 'มาตรฐาน',
+  'cal.flash.set.multi-layer': 'หลายชั้น (Multi-layer)',
+  'cal.flash.save': 'บันทึกลงแฟลช…',
+  'cal.flash.reload': 'โหลดจากแฟลช…',
+  'cal.flash.erase': 'ลบแฟลช…',
+  'cal.flash.saveTitle': 'บันทึกค่าสัมประสิทธิ์ลงแฟลช?',
+  'cal.flash.saveBody': 'ค่าสัมประสิทธิ์ที่ใช้งานอยู่ของ {target} ({set}) จะถูกคัดลอกลงแฟลชของการ์ด ทับค่าที่เก็บอยู่เดิม',
+  'cal.flash.reloadTitle': 'โหลดค่าสัมประสิทธิ์จากแฟลช?',
+  'cal.flash.reloadBody':
+    'ค่าสัมประสิทธิ์ในแฟลชของ {target} ({set}) จะมาแทนค่าที่ใช้งานอยู่ ค่าที่ยังไม่ได้บันทึก (เช่นที่เพิ่งอัปโหลด) จะหายไป',
+  'cal.flash.eraseTitle': 'ลบค่าสัมประสิทธิ์ในแฟลช?',
+  'cal.flash.eraseBody': 'ค่าสัมประสิทธิ์ที่เก็บในแฟลชของ {target} จะถูกลบ ย้อนกลับไม่ได้ ควรดาวน์โหลดไฟล์สำรองก่อน',
+  'cal.flash.eraseUnverified':
+    'ค่าที่คำสั่งลบส่งไปไม่มีเอกสารในไลบรารีอุปกรณ์ และยังไม่ได้ยืนยันกับเครื่องจริง',
+  'cal.flash.done': 'ดำเนินการกับ {target} เรียบร้อย',
+
+  'cal.unsupported.title': 'ส่วนที่ไม่มีให้',
+  'cal.unsupported.intro': 'ส่วนเหล่านี้ของคาลิเบรตใน NovaLCT ยังไม่มีให้ พร้อมเหตุผล:',
+  'cal.unsupported.searched': 'คำที่ค้นหา: {terms}',
+  'cal.unsupported.bright-dark-line-fix':
+    'ปรับรอยต่อ / เส้นสว่าง-มืด: ไลบรารีมีคำสั่ง (SetBrightDarkLineFixState, SaveBrightDarkLineFixCoefsToFlash, SetBrightDarkLineCoefsErase) แต่ไม่ระบุค่าที่ใช้ และสถานะนี้ใช้รีจิสเตอร์เดียวกับสวิตช์คาลิเบรต การส่งค่าผิดอาจปิดคาลิเบรตไปด้วย จึงแสดงเฉพาะไบต์สถานะดิบด้านบน',
+  'cal.unsupported.area-adjust':
+    'ปรับเฉพาะพื้นที่: ไลบรารีมีเพียงคำสั่ง 41 ไบต์ (SetAreaCoefsOperate) ที่ไม่มีเอกสารโครงสร้างข้อมูล',
+  'cal.unsupported.slave-flash':
+    'สำเนาสำรองในแฟลชสำรอง ("solidify" / "factory"): มีคำสั่งในไลบรารีแต่ไม่มีเอกสารว่าแฟลชสำรองเก็บอะไร',
+  'cal.unsupported.iic-flash': 'การเก็บลงแฟลช I2C / แฟลชโมดูล: ไม่มีเอกสารว่าคำสั่งเหล่านี้ทำงานกับอะไร',
+  'cal.unsupported.camera': 'การวัดด้วยกล้องและคำนวณค่าสัมประสิทธิ์ใหม่ อยู่นอกขอบเขตของโปรแกรมนี้',
 };
