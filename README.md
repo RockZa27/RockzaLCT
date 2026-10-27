@@ -32,7 +32,7 @@ pnpm --filter @rockzalct/simulator start                     # การ์ด�
 ตัวติดตั้งสร้างบน Windows เท่านั้น (ต้องใช้ native module ของ Electron) — ใช้ GitHub Actions:
 
 - **ด้วยมือ:** แท็บ Actions → **Release (Windows)** → Run workflow → ดาวน์โหลด `RockzaLCT-Setup` จาก Artifacts
-- **ออก release:** `git tag v0.1.0 && git push origin v0.1.0` — workflow จะ build แล้วแนบ `.exe` ไว้ที่ GitHub Release อัตโนมัติ
+- **ออก release:** `git tag v0.1.0 && git push origin v0.1.0` — workflow จะรันเทสและบูตแอปที่ package แล้ว จากนั้นสร้าง **draft** release พร้อมแนบ `.exe` ให้คนกด Publish เอง
 - **บนเครื่อง Windows:** `pnpm install && pnpm build && pnpm --filter @rockzalct/desktop dist:win` ผลลัพธ์อยู่ที่ `apps/desktop/release/RockzaLCT-Setup-<เวอร์ชัน>.exe`
 
 เวอร์ชันของตัวติดตั้งมาจาก `version` ใน `apps/desktop/package.json` สคริปต์ `apps/desktop/scripts/dist.mjs` อธิบายวิธีจัดการ pnpm และ native module (`serialport`) ไว้ในคอมเมนต์ CI ปกติ (`ci.yml`) รัน typecheck / test / build ทุก push และ pull request

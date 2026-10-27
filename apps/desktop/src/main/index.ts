@@ -1,19 +1,40 @@
+import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain } from 'electron';
 import type { DeviceApi } from '@rockzalct/shared';
 import { getDeviceApi } from './deviceFactory';
 import { registerDeviceIpc } from './ipc';
+import { resolveSmokeOut, runStartup } from './startup';
 
 /**
  * `--smoke-test`: boot for real, check the device layer answers and the preload bridge reached the
  * page, then exit 0 (non-zero on failure). CI runs the packaged app this way, because a broken
  * bundle (e.g. a native module or ESM require failing in Electron's Node) only shows up at runtime.
+ *
+ * `--smoke-out=<path>`: also write the result line to that file. A GUI-subsystem exe on Windows has
+ * no console, so CI reads the file instead of stdout.
  */
 const SMOKE = process.argv.includes('--smoke-test');
+const SMOKE_OUT = resolveSmokeOut(process.argv);
+
+const describeErr = (err: unknown): string =>
+  err instanceof Error ? (err.stack ?? err.message) : String(err);
+
+function smokeResult(line: string, ok: boolean): void {
+  if (ok) console.log(line);
+  else console.error(line);
+  if (SMOKE_OUT) {
+    try {
+      writeFileSync(SMOKE_OUT, `${line}\n`);
+    } catch (err) {
+      console.error('SMOKE could not write', SMOKE_OUT, err);
+    }
+  }
+}
 
 function runSmokeTest(win: BrowserWindow, api: DeviceApi): void {
   const fail = (why: unknown): void => {
-    console.error('SMOKE FAIL', why);
+    smokeResult(`SMOKE FAIL ${describeErr(why)}`, false);
     app.exit(1);
   };
   setTimeout(() => fail('timeout'), 30_000).unref();
@@ -24,7 +45,7 @@ function runSmokeTest(win: BrowserWindow, api: DeviceApi): void {
         const bridge = await win.webContents.executeJavaScript('typeof window.rockzalct');
         if (bridge !== 'object') return fail(`preload bridge is ${String(bridge)}`);
         const found = await api.discover();
-        console.log(`SMOKE OK bridge=${bridge} discovered=${found.length}`);
+        smokeResult(`SMOKE OK bridge=${bridge} discovered=${found.length}`, true);
         app.exit(0);
       } catch (err) {
         fail(err);
@@ -56,18 +77,26 @@ function createWindow(): BrowserWindow {
 }
 
 if (SMOKE) process.on('uncaughtException', (err) => {
-  console.error('SMOKE FAIL', err);
+  smokeResult(`SMOKE FAIL ${describeErr(err)}`, false);
   app.exit(1);
 });
 
-app.whenReady().then(() => {
-  const api = getDeviceApi(undefined, { userDataDir: app.getPath('userData') });
-  registerDeviceIpc(ipcMain, api);
-  const win = createWindow();
-  if (SMOKE) runSmokeTest(win, api);
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
-  });
+void runStartup({
+  whenReady: () => app.whenReady(),
+  smoke: SMOKE,
+  showError: (title, content) => dialog.showErrorBox(title, content),
+  exit: (code) => app.exit(code),
+  logError: (...args) => console.error(...args),
+  onSmokeFail: (err) => smokeResult(`SMOKE FAIL ${describeErr(err)}`, false),
+  boot: () => {
+    const api = getDeviceApi(undefined, { userDataDir: app.getPath('userData') });
+    registerDeviceIpc(ipcMain, api);
+    const win = createWindow();
+    if (SMOKE) runSmokeTest(win, api);
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    });
+  },
 });
 
 app.on('window-all-closed', () => {

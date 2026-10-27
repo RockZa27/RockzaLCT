@@ -6,24 +6,32 @@ on:
     tags:
       - "v*"
 
+# Nothing is writable by default; only the publish job below asks for contents: write.
 permissions:
-  contents: write # needed only to attach the installer to a GitHub release on tag builds
+  contents: read
 
 jobs:
-  windows-installer:
+  # Runs third-party code (install, build, packaging) with a read-only token and no stored credentials.
+  build:
     runs-on: windows-latest
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
         with:
           version: 10.28.0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
         env:
           ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+      - run: pnpm typecheck
+      - run: pnpm test
       - run: pnpm build
       - name: Build NSIS installer (unsigned)
         run: pnpm --filter @rockzalct/desktop dist:win
@@ -32,16 +40,50 @@ jobs:
         run: |
           ls -la apps/desktop/release
           test -f "$(ls apps/desktop/release/RockzaLCT-Setup-*.exe | head -n1)"
-      - uses: actions/upload-artifact@v4
+      # Boot the packaged app for real. The exe is a GUI-subsystem program, so its stdout does not
+      # reach the console; it writes the result to --smoke-out and we read that file.
+      - name: Smoke-test the packaged Windows app
+        shell: pwsh
+        run: |
+          $exe = "apps/desktop/release/win-unpacked/RockzaLCT.exe"
+          if (-not (Test-Path $exe)) { throw "missing $exe" }
+          $out = Join-Path $env:RUNNER_TEMP "smoke-out.txt"
+          Remove-Item $out -ErrorAction SilentlyContinue
+          $p = Start-Process -FilePath $exe -ArgumentList "--sim","--smoke-test","--smoke-out=$out" -PassThru
+          if (-not $p.WaitForExit(120000)) {
+            Stop-Process -Id $p.Id -Force
+            throw "smoke test timed out after 120 s"
+          }
+          if (-not (Test-Path $out)) { throw "app exited ($($p.ExitCode)) without writing $out" }
+          $text = Get-Content $out -Raw
+          Write-Host $text
+          if ($text -notmatch "SMOKE OK") { throw "smoke test did not report SMOKE OK" }
+          if ($p.ExitCode -ne 0) { throw "smoke test exit code $($p.ExitCode)" }
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: RockzaLCT-Setup
           path: apps/desktop/release/RockzaLCT-Setup-*.exe
           if-no-files-found: error
-      - name: Attach to GitHub release
-        if: startsWith(github.ref, 'refs/tags/v')
-        shell: bash
+
+  # Only this job can write to the repository, and it runs no project code: it downloads the
+  # already-tested installer and creates a DRAFT release for a human to review and publish.
+  publish:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: RockzaLCT-Setup
+          path: dist
+      - name: Create draft release
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
-          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes
-          gh release upload "$GITHUB_REF_NAME" apps/desktop/release/RockzaLCT-Setup-*.exe --clobber
+          ls -la dist
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 \
+            || gh release create "$GITHUB_REF_NAME" --draft --title "$GITHUB_REF_NAME" --generate-notes
+          gh release upload "$GITHUB_REF_NAME" dist/RockzaLCT-Setup-*.exe --clobber

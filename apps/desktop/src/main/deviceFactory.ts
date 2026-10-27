@@ -1,9 +1,9 @@
 import * as taurusLib from '@novastar/taurus';
-import type { DeviceApi } from '@rockzalct/shared';
+import type { DeviceApi, HardwareOverrides } from '@rockzalct/shared';
 import { createDeviceService } from '@rockzalct/device';
 import { startHSeriesSimulator, startSimulator, startTaurusSimulator } from '@rockzalct/simulator';
 import { createMockDevice } from './mockDevice';
-import { createOverridesStore } from './overridesStore';
+import { createOverridesStore, type OverridesStore } from './overridesStore';
 
 /** Defers every call until `ready` resolves; used for back-ends that need async setup. */
 function deferred(ready: Promise<DeviceApi>): DeviceApi {
@@ -14,6 +14,20 @@ function deferred(ready: Promise<DeviceApi>): DeviceApi {
         return (api[method] as (...a: unknown[]) => Promise<unknown>).apply(api, args);
       },
   });
+}
+
+/**
+ * The callback the device service calls on every settings change. It THROWS (with the store's
+ * reason) when the file could not be written, so the service can refuse/roll back the change
+ * instead of silently losing it on the next start.
+ */
+export function persistOverrides(
+  store: Pick<OverridesStore, 'save'>,
+): (values: HardwareOverrides) => void {
+  return (values) => {
+    const saved = store.save(values);
+    if (!saved.ok) throw new Error(saved.error);
+  };
 }
 
 /**
@@ -34,7 +48,7 @@ const backends: Record<string, (opts: DeviceFactoryOptions) => DeviceApi> = {
       taurusDiscovery: true,
       taurusUdpDiscovery: true,
       ...(store
-        ? { hardwareOverrides: store.load(), onHardwareOverridesChange: (values) => void store.save(values) }
+        ? { hardwareOverrides: store.load(), onHardwareOverridesChange: persistOverrides(store) }
         : {}),
     });
   },

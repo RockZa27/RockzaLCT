@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { getDeviceApi, resolveDeviceName } from './deviceFactory';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { DEFAULT_HARDWARE_OVERRIDES } from '@rockzalct/shared';
+import { getDeviceApi, persistOverrides, resolveDeviceName } from './deviceFactory';
+import { createOverridesStore } from './overridesStore';
 
 describe('resolveDeviceName', () => {
   it('defaults to real when no flag and no env', () => {
@@ -33,5 +38,37 @@ describe('getDeviceApi', () => {
 
   it('creates the mock back-end', () => {
     expect(typeof getDeviceApi('mock')).toBe('object');
+  });
+});
+
+describe('persistOverrides (onHardwareOverridesChange contract)', () => {
+  const quiet = { warn: () => undefined, error: () => undefined };
+  const values = { ...DEFAULT_HARDWARE_OVERRIDES, lockOn: 2 };
+
+  it('saves to disk and returns normally on success', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'rockzalct-persist-'));
+    try {
+      const store = createOverridesStore(dir, quiet);
+      expect(() => persistOverrides(store)(values)).not.toThrow();
+      expect(readFileSync(store.path, 'utf8')).toContain('"lockOn": 2');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('throws an Error carrying the store reason when the save fails', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'rockzalct-persist-'));
+    try {
+      // userData "directory" is a regular file, so mkdir/open fails even when running as root
+      const blocker = join(dir, 'not-a-dir');
+      writeFileSync(blocker, 'x');
+      const store = createOverridesStore(blocker, quiet);
+      const reason = store.save(values);
+      expect(reason.ok).toBe(false);
+      expect(() => persistOverrides(store)(values)).toThrow(Error);
+      expect(() => persistOverrides(store)(values)).toThrow((reason as { error: string }).error);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
