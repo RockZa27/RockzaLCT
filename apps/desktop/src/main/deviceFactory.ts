@@ -31,7 +31,28 @@ const backends: Record<string, () => DeviceApi> = {
   mock: () => createMockDevice(),
 };
 
-export function getDeviceApi(name: string | undefined = process.env.ROCKZALCT_DEVICE): DeviceApi {
+/**
+ * Picks the back-end name. Command-line flags win over the environment, so a
+ * packaged Windows build can be started in simulator mode without env vars:
+ *   RockzaLCT.exe --sim        (also --mock, or --device=<name>)
+ * Default (no flag, no env) is "real".
+ */
+export function resolveDeviceName(
+  argv: readonly string[] = process.argv,
+  env: Record<string, string | undefined> = process.env,
+): string {
+  for (const arg of argv) {
+    if (arg === '--sim') return 'sim';
+    if (arg === '--mock') return 'mock';
+    if (arg.startsWith('--device=') && arg.length > '--device='.length) {
+      return arg.slice('--device='.length);
+    }
+  }
+  const fromEnv = env['ROCKZALCT_DEVICE'];
+  return fromEnv && fromEnv.length > 0 ? fromEnv : 'real';
+}
+
+export function getDeviceApi(name: string | undefined = resolveDeviceName()): DeviceApi {
   const key = name && name.length > 0 ? name : 'real';
   const make = backends[key];
   if (!make) {

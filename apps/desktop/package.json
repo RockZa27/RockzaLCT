@@ -1,6 +1,6 @@
 {
   "name": "@rockzalct/desktop",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "description": "RockzaLCT desktop app (Electron + React)",
   "main": "out/main/index.js",
@@ -8,7 +8,9 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "typecheck": "tsc -p tsconfig.node.json --noEmit && tsc -p tsconfig.web.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "dist:win": "electron-vite build && node scripts/dist.mjs --win nsis --x64",
+    "pack:dir": "electron-vite build && node scripts/dist.mjs --dir --linux"
   },
   "dependencies": {
     "@novastar/codec": "^2.2.3",
@@ -34,5 +36,45 @@
     "react-dom": "^18.3.1",
     "vite": "^5.4.11",
     "vitest": "^2.1.8"
+  },
+  "author": "RockzaLCT",
+  "build": {
+    "appId": "com.rockzalct.app",
+    "productName": "RockzaLCT",
+    "copyright": "RockzaLCT",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "out/**/*",
+      "package.json",
+      "!node_modules/@rockzalct/**",
+      "!**/*.{md,map,tsbuildinfo}",
+      "!**/node_modules/@serialport/bindings-cpp/src/**",
+      "!**/node_modules/@serialport/bindings-cpp/prebuilds/{android-*,darwin-*,linux-*,win32-arm64,win32-ia32}/**"
+    ],
+    "asar": true,
+    "asarUnpack": [
+      "**/node_modules/@serialport/bindings-cpp/prebuilds/**",
+      "**/*.node"
+    ],
+    "npmRebuild": true,
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "RockzaLCT-Setup-${version}.exe"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "shortcutName": "RockzaLCT"
+    }
   }
 }
