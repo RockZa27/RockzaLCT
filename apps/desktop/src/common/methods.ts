@@ -8,6 +8,7 @@ import {
   PERSIST_METHODS,
   RECEIVER_METHODS,
   SENDER_METHODS,
+  SMART_SETTINGS_METHODS,
   TAURUS_METHODS,
   type DeviceApi,
 } from '@rockzalct/shared';
@@ -24,6 +25,7 @@ const table: { [K in keyof DeviceApi]: true } = {
   login: true,
   ...SENDER_METHODS,
   ...RECEIVER_METHODS,
+  ...SMART_SETTINGS_METHODS,
   ...LAYOUT_METHODS,
   ...PERSIST_METHODS,
   ...MONITOR_METHODS,

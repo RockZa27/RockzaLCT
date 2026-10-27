@@ -10,7 +10,7 @@ import {
 } from '@rockzalct/shared';
 import type { MockContext } from './context';
 
-const DEFAULTS = {
+export const MOCK_RECEIVER_DEFAULTS = {
   moduleWidth: 64,
   moduleHeight: 32,
   scanMode: 16,
@@ -30,23 +30,28 @@ const DEFAULTS = {
   voltageRaw: 50,
 } as const;
 
+/** The mock cards of every controller, keyed by `id|port|card`; shared with the smart-settings mock. */
+export type MockCardStore = Map<string, ReceiverParameters>;
+
+/** A card of the store; it springs into existence with default values the first time it is addressed. */
+export function mockCardOf(cards: MockCardStore, id: string, port: number, card: number): ReceiverParameters {
+  const k = `${id}|${port}|${card}`;
+  let p = cards.get(k);
+  if (!p) {
+    p = { portIndex: port, cardIndex: card, ...MOCK_RECEIVER_DEFAULTS };
+    cards.set(k, p);
+  }
+  return p;
+}
+
 /**
  * In-memory receiving cards. The mock context does not expose the fake controllers' card lists, so
  * a card springs into existence with default values the first time it is addressed (any valid
  * port/card index works). Broadcast writes only reach cards that have been touched before.
+ * Pass a `cards` store to share the cards with another mock feature (smart settings).
  */
-export function createMockReceiver(ctx: MockContext): ReceiverApi {
-  const cards = new Map<string, ReceiverParameters>();
-  const key = (id: string, port: number, card: number): string => `${id}|${port}|${card}`;
-  const cardOf = (id: string, port: number, card: number): ReceiverParameters => {
-    const k = key(id, port, card);
-    let p = cards.get(k);
-    if (!p) {
-      p = { portIndex: port, cardIndex: card, ...DEFAULTS };
-      cards.set(k, p);
-    }
-    return p;
-  };
+export function createMockReceiver(ctx: MockContext, cards: MockCardStore = new Map()): ReceiverApi {
+  const cardOf = (id: string, port: number, card: number): ReceiverParameters => mockCardOf(cards, id, port, card);
   const requireAdvanced = (): void => {
     if (!ctx.isAdvanced()) throw new DeviceError('PERMISSION', 'advanced user level required');
   };

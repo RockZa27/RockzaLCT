@@ -13,28 +13,8 @@ import {
 import { useI18n } from '../i18n/I18nProvider';
 import type { MessageKey } from '../i18n/dictionary';
 import { useApp } from '../state/AppContext';
+import { loadLibrary, saveLibrary, withProfile } from './moduleLibrary';
 import { ConfirmDialog } from './persist/ConfirmDialog';
-
-const LIBRARY_KEY = 'rockzalct.modules';
-
-function loadLibrary(): ModuleProfile[] {
-  try {
-    const text = localStorage.getItem(LIBRARY_KEY);
-    if (!text) return [];
-    const res = parseModuleLibraryJson(text);
-    return res.ok ? res.profiles : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveLibrary(profiles: ModuleProfile[]): void {
-  try {
-    localStorage.setItem(LIBRARY_KEY, serializeModuleLibrary(profiles));
-  } catch {
-    /* storage unavailable: the library stays in memory only */
-  }
-}
 
 type DraftField =
   | 'name'
@@ -283,10 +263,7 @@ export function ReceiverPage() {
     }
     setDraftErrors([]);
     const profile = res.profile;
-    const next = [
-      ...library.filter((p) => p.name.toLowerCase() !== profile.name.toLowerCase()),
-      profile,
-    ].sort((a, b) => a.name.localeCompare(b.name));
+    const next = withProfile(library, profile);
     setLibrary(next);
     saveLibrary(next);
     pushInfo(t('rcv.lib.saved', { name: profile.name }));

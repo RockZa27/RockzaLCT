@@ -80,6 +80,7 @@ describe('navigation per controller family', () => {
       'Taurus',
       'Sending card',
       'Receiving card',
+      'Smart Settings',
       'Screen connection',
       'Save & load',
       'Monitoring',

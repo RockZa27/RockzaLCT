@@ -66,6 +66,7 @@ export interface UserLevel {
 
 import type { SenderApi } from './features/sender.js';
 import type { ReceiverApi } from './features/receiver.js';
+import type { SmartSettingsApi } from './features/smartSettings.js';
 import type { LayoutApi } from './features/layout.js';
 import type { PersistApi } from './features/persist.js';
 import type { MonitorApi } from './features/monitor.js';
@@ -77,6 +78,7 @@ import type { OverridesApi } from './features/overrides.js';
 
 export * from './features/sender.js';
 export * from './features/receiver.js';
+export * from './features/smartSettings.js';
 export * from './features/layout.js';
 export * from './features/persist.js';
 export * from './features/monitor.js';
@@ -87,7 +89,7 @@ export * from './features/maintenance.js';
 export * from './features/overrides.js';
 
 /** Operations exposed to the renderer over IPC. All methods may reject with DeviceError. */
-export interface DeviceApi extends SenderApi, ReceiverApi, LayoutApi, PersistApi, MonitorApi, HSeriesApi, TaurusApi, CalibrationApi, MaintenanceApi, OverridesApi {
+export interface DeviceApi extends SenderApi, ReceiverApi, SmartSettingsApi, LayoutApi, PersistApi, MonitorApi, HSeriesApi, TaurusApi, CalibrationApi, MaintenanceApi, OverridesApi {
   discover(options?: { netHosts?: string[]; timeoutMs?: number }): Promise<DiscoveredController[]>;
   connect(id: string): Promise<ControllerInfo>;
   disconnect(id: string): Promise<void>;

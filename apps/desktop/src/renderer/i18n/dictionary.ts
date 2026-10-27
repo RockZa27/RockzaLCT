@@ -7,6 +7,7 @@ import { maintenanceEn, maintenanceTh } from './maintenance';
 import { persistEn, persistTh } from './persist';
 import { receiverEn, receiverTh } from './receiver';
 import { senderEn, senderTh } from './sender';
+import { smartEn, smartTh } from './smartSettings';
 import { taurusEn, taurusTh } from './taurus';
 
 export type Lang = 'th' | 'en';
@@ -16,6 +17,7 @@ const en = {
   ...hseriesEn,
   ...taurusEn,
   ...receiverEn,
+  ...smartEn,
   ...layoutEn,
   ...persistEn,
   ...monitorEn,
@@ -112,6 +114,7 @@ const th: Record<MessageKey, string> = {
   ...hseriesTh,
   ...taurusTh,
   ...receiverTh,
+  ...smartTh,
   ...layoutTh,
   ...persistTh,
   ...monitorTh,

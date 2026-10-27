@@ -29,6 +29,7 @@ import { createCalibrationFeature } from './features/calibration.js';
 import { createMaintenanceFeature } from './features/maintenance.js';
 import { createPersistFeature } from './features/persist.js';
 import { createReceiverFeature } from './features/receiver.js';
+import { createSmartSettingsFeature } from './features/smartSettings.js';
 import { createSenderFeature } from './features/sender.js';
 import { createHSeriesBackend, type HSeriesBackend } from './hseries/backend.js';
 import { DEFAULT_HSERIES_PORT } from './hseries/protocol.js';
@@ -641,6 +642,7 @@ export function createDeviceService(options: DeviceServiceOptions = {}): DeviceS
   return {
     ...mctrlOnly(createSenderFeature(ctx)),
     ...mctrlOnly(createReceiverFeature(ctx)),
+    ...mctrlOnly(createSmartSettingsFeature(ctx)),
     ...mctrlOnly(createLayoutFeature(ctx)),
     ...mctrlOnly(createPersistFeature(ctx)),
     ...mctrlOnly(createMonitorFeature(ctx)),
