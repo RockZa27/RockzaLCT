@@ -61,3 +61,9 @@
 | ค้นคว้า Taurus / H5 | sonnet #11 | ผ่าน (งานค้นคว้า ไม่ให้คะแนนโค้ด) | Opus ยืนยัน `@novastar/taurus` v0.4.1 MIT มีจริง และรหัสคำสั่ง H series มีจริงในโมดูล MIT v3.0.7 |
 | H5 ผ่าน UDP | sonnet #12 | **9/10** | merge — Opus เทียบรหัสคำสั่ง 16 ตัว + test pattern 9 ค่า + พอร์ต 6000 กับบรรทัดที่อ้างในโค้ดอ้างอิง ตรงทุกตัว; 410 tests; smoke test ของแอปที่ package แล้วเจอทั้ง 2 ตระกูล (−1: เทส device ช้าลงเพราะรอ UDP probe 2 วินาทีกับ hostname ปลอม) |
 | Taurus ผ่าน `@novastar/taurus` | sonnet #13 | **9/10** | merge — Opus ตรวจฟังก์ชันไลบรารีที่เรียกทั้ง 16 ตัวมีอยู่จริงใน typings, ไม่มีรหัสผ่านฝังในโค้ดฝั่งเครื่องจริง, 475 tests, smoke test เจอครบ 3 ตระกูล (−1: simulator รับ codec เป็นพารามิเตอร์ จึงเทส framing ในแพ็กเกจ simulator เองไม่ได้) |
+
+## ผลรอบที่ 7 (ระยะ 8–9)
+
+| งาน | Agent | คะแนน | ผล |
+|---|---|---|---|
+| ระยะ 9 การ์ดมัลติฟังก์ชัน + firmware | sonnet #15 | **8/10** | merge — **ไม่ได้ทำการเขียน firmware** เพราะไลบรารีไม่มีขั้นตอนครบ (ไม่มี erase ของ program, ไม่มี readback, ไม่มีรูปแบบไฟล์); Opus ค้นซ้ำยืนยันข้อสรุป และตรวจ address relay 3 ตัวตรง (−2: รายงานตกหล่น `SetSender_McuUpdateProgrammFinish` ซึ่งไม่เปลี่ยนข้อสรุป; กล่อง danger zone ยังไม่มีสไตล์) |
