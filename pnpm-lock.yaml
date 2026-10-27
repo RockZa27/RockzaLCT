@@ -29,6 +29,9 @@ importers:
       '@novastar/net':
         specifier: ^2.2.3
         version: 2.2.3(debug@4.4.3)(iconv-lite@0.6.3)
+      '@novastar/screen':
+        specifier: 2.5.2
+        version: 2.5.2(debug@4.4.3)(iconv-lite@0.6.3)
       '@novastar/serial':
         specifier: ^2.2.1
         version: 2.2.1(debug@4.4.3)(iconv-lite@0.6.3)
@@ -44,6 +47,9 @@ importers:
       '@rockzalct/simulator':
         specifier: workspace:*
         version: link:../../packages/simulator
+      fast-xml-parser:
+        specifier: ^5.11.2
+        version: 5.11.2
     devDependencies:
       '@testing-library/jest-dom':
         specifier: ^6.6.3
@@ -99,6 +105,9 @@ importers:
       '@novastar/net':
         specifier: ^2.2.3
         version: 2.2.3(debug@4.4.3)(iconv-lite@0.6.3)
+      '@novastar/screen':
+        specifier: 2.5.2
+        version: 2.5.2(debug@4.4.3)(iconv-lite@0.6.3)
       '@novastar/serial':
         specifier: ^2.2.1
         version: 2.2.1(debug@4.4.3)(iconv-lite@0.6.3)
@@ -108,6 +117,9 @@ importers:
       '@rockzalct/shared':
         specifier: workspace:*
         version: link:../shared
+      fast-xml-parser:
+        specifier: ^5.11.2
+        version: 5.11.2
     devDependencies:
       '@rockzalct/simulator':
         specifier: workspace:*
@@ -625,6 +637,9 @@ packages:
     cpu: [x64]
     os: [linux]
 
+  '@nodable/entities@3.1.0':
+    resolution: {integrity: sha512-LsS/DjHr+uDM647Gru/cA8+J3a3HfhttwCKLyuoyN7yXTFCxKBtSgMQBvrW9yNPa2/zDRUNuGPaH5QUFoa4arQ==}
+
   '@novastar/codec@2.2.3':
     resolution: {integrity: sha512-wenu0FAD5mJH1mK7ai6HPktW7trqmUHbUhMLoBsRMxiloTUBQ6exGSEwTjNnJJFbNJ/xd6d7PLiWRkoXQU3WlA==}
     engines: {node: '>=18'}
@@ -636,6 +651,11 @@ packages:
 
   '@novastar/net@2.2.3':
     resolution: {integrity: sha512-eOsP0b0GNydCytkBWTulVVJidsn4fFa7CNCGzefJ3sYtc7ZyG6S8WDhlSQQw0oZmW67PYNLPgWZun9oKrdaDSQ==}
+    peerDependencies:
+      debug: ^4.3.3
+
+  '@novastar/screen@2.5.2':
+    resolution: {integrity: sha512-vaPyQN4EJbJ3iE9Hwr0uJv+BaG6+Op2nYiCouaLOdkdpUcevt+GGMCh4u17V16WLWRLsJaA5LyUfEhXJ5h+Ezg==}
     peerDependencies:
       debug: ^4.3.3
 
@@ -787,6 +807,10 @@ packages:
     resolution: {integrity: sha512-+Y1Sd49cSDq60UOl8/U2HI0ebUvnSl/hDhMHQn+ouw17yb8fYwMWIazzJ4JFpSkjPE7sj5NTNSX9IoyEqcFfyQ==}
     cpu: [x64]
     os: [win32]
+
+  '@sarakusha/lzma@2.3.4':
+    resolution: {integrity: sha512-PmNtDXumgnraKvfCz5wPXyKua4UHxgobg1L/aWTa/VKMPL7qPmSvAj/lsEh8G7pBngX/SsBlgC1nlb28ar5BUQ==}
+    hasBin: true
 
   '@serialport/binding-mock@10.2.2':
     resolution: {integrity: sha512-HAFzGhk9OuFMpuor7aT5G1ChPgn5qSsklTFOTUX72Rl6p0xwcSVsRtG/xaGp6bxpN7fI9D/S8THLBWbBgS6ldw==}
@@ -1001,8 +1025,16 @@ packages:
     resolution: {integrity: sha512-5AXjrcMClTryPe9LgZrygpB1lj7s0S9E0+W+AHaVKAVyHanafK86iPSvG5xHVSp/jC+VH1UXu0TAEmY279xH7A==}
     engines: {node: '>=14.6'}
 
+  '@zip.js/zip.js@2.24.0':
+    resolution: {integrity: sha512-WlaVKzdqBK+RF3bdiXZWbdCnvGB6PdO4IHC1mn/2Yfl3bASgqUNegnU3+PNg61iecwoPfUi5BgLUPqBukXpyWw==}
+    engines: {bun: '>=0.7.0', deno: '>=1.0.0', node: '>=18.0.0'}
+
   abbrev@1.1.1:
     resolution: {integrity: sha512-nne9/IiQ/hzIhY6pdDnbBtz7DjPTKrY00P/zvPSm5pOFkl6xuGrGnXn/VtTNNfNtAfZ9/1RtehkszU9qcTii0Q==}
+
+  adm-zip@0.5.18:
+    resolution: {integrity: sha512-ufJnssQGbxzLNS1Ho9bCtX4rQKCCvoVuDLHoJyc3F9dOGDB4BkWs2Ci0kv53lqocAEQ/Cbi+I2XCsNYGqVYqng==}
+    engines: {node: '>=12.0'}
 
   agent-base@6.0.2:
     resolution: {integrity: sha512-RZNwNclF7+MS/8bDg70amg32dyeZGZxiDuQmZxKLAlQjr3jGyLx+4Kkk58UO7D2QdgFIQCovuSuZESne6RG6XQ==}
@@ -1058,6 +1090,9 @@ packages:
   ansi-styles@6.2.3:
     resolution: {integrity: sha512-4Dj6M28JB+oAH8kFkTLUo+a2jwOFkuqb3yucU0CANcRRUbxS0cP0nZYCGjcc3BNXwRIsUVmDGgzawme7zvJHvg==}
     engines: {node: '>=12'}
+
+  anynum@1.0.1:
+    resolution: {integrity: sha512-N6//FLET/tXYNM/F6ABca1oH6fWB+KlTt909Le28WMDBk8oaT4vY17DCrwg2MvmuqUKt3Ni4N5dGJ/EoBgcO6A==}
 
   app-builder-bin@5.0.0-alpha.10:
     resolution: {integrity: sha512-Ev4jj3D7Bo+O0GPD2NMvJl+PGiBAfS7pUGawntBNpCbxtpncfUixqFj9z9Jme7V7s3LBGqsWZZP54fxBX3JKJw==}
@@ -1573,6 +1608,13 @@ packages:
   fast-uri@3.1.9:
     resolution: {integrity: sha512-hS/0Wt3Ya043oKXs0sIxrMpKQITXhMLIrVAKKXi4gozGC9v7YRWVnXIZzjNPTO02M9BdxLCWqK1yRXgNziVyJQ==}
 
+  fast-xml-builder@1.3.1:
+    resolution: {integrity: sha512-pIM/1n3ntFXKYrUZwW7QCK0gAW7XY+wzj1YMIV3tLDvPj/V+zTGJK5e3/4WJfwj0qWw2ElNXiTixda/R+3YSug==}
+
+  fast-xml-parser@5.11.2:
+    resolution: {integrity: sha512-R9iDuNrQYeQut46cn2r2wHKn4HYzVDvDm5J1wW+koZewykv0yuO2HChTYeZtrULyHIDM9cj9TUXloCsueCQUog==}
+    hasBin: true
+
   fd-slicer@1.1.0:
     resolution: {integrity: sha512-cE1qsB/VwyQozZ+q1dGxR8LBYNZeofhEdUNGSMbQD3Gw2lAzX9Zb3uIU6Ebc/Fmyjo9AWWfnn0AUCHqtevs/8g==}
 
@@ -1810,6 +1852,9 @@ packages:
   is-unicode-supported@0.1.0:
     resolution: {integrity: sha512-knxG2q4UC3u8stRGyAVJCOdxFmv5DZiRcdlIaAQXAbSfJya+OhopNotLQrstBhququ4ZpuKbDc/8S6mgXgPFPw==}
     engines: {node: '>=10'}
+
+  is-unsafe@2.0.2:
+    resolution: {integrity: sha512-HgbIHPBH0KHHCcjLfGsCvhtPTVxjaAZlXjwdz7/GQC40SjSe4sfQsar8J5VFo8JOSbarkpV0OLG95bbaNd9aAQ==}
 
   isarray@1.0.0:
     resolution: {integrity: sha512-VLghIWNM6ELQzo7zwmcg0NmTVyWKYjvIeM83yjp0wRDTmUnrM678fQbcKBo6n2CJEF0szoG//ytg+TKla89ALQ==}
@@ -2152,6 +2197,10 @@ packages:
   parse5@7.3.0:
     resolution: {integrity: sha512-IInvU7fabl34qmi9gY8XOVxhYyMyuH2xUNpb2q8/Y+7552KlejkRvqvD19nMoUW/uQGGbqNpA6Tufu5FL5BZgw==}
 
+  path-expression-matcher@1.6.2:
+    resolution: {integrity: sha512-enSlaiat05iasnzmgNxRj8reFdj3puY2QpNgP1aPIaVfT6nn9ICuPoFlKHk8EN22HcwewshO+mN2DGbkCEOtqQ==}
+    engines: {node: '>=14.0.0'}
+
   path-is-absolute@1.0.1:
     resolution: {integrity: sha512-AVbw3UJ2e9bq64vSaS9Am0fje1Pa8pbGqTTsmXfaIiMpnr5DlDhfJOuLj9Sf95ZPVDAUerDfEk88MPmPe7UCQg==}
     engines: {node: '>=0.10.0'}
@@ -2441,6 +2490,9 @@ packages:
     resolution: {integrity: sha512-laJTa3Jb+VQpaC6DseHhF7dXVqHTfJPCRDaEbid/drOhgitgYku/letMUqOXFoWV0zIIUbjpdH2t+tYj4bQMRQ==}
     engines: {node: '>=8'}
 
+  strnum@2.5.1:
+    resolution: {integrity: sha512-UM4nTLWzQiDBseVxUGxN0wJzIk0UU89Qi7pKXz9qISo+lhviJikTuikBsK/oFRlpvYHvSdz0TVoLyQ+sEpYwxA==}
+
   stubborn-fs@2.0.0:
     resolution: {integrity: sha512-Y0AvSwDw8y+nlSNFXMm2g6L51rBGdAQT20J3YSOqxC53Lo3bjWRtr2BKcfYoAf352WYpsZSTURrA0tqhfgudPA==}
 
@@ -2725,6 +2777,10 @@ packages:
   xml-name-validator@5.0.0:
     resolution: {integrity: sha512-EvGK8EJ3DhaHfbRlETOWAS5pO9MZITeauHKJyb8wyajUfQUenkIg2MvLDTZ4T/TgIcm3HU0TFBgWWboAZ30UHg==}
     engines: {node: '>=18'}
+
+  xml-naming@0.3.0:
+    resolution: {integrity: sha512-ghig2TBE/H11aOVgmahA3MhimvkBr6JIYknH/Dhdk10nXwdbIqBJsbfMxpvFPG8bAw77gN29aQWvKpmVoPlvPQ==}
+    engines: {node: '>=16.0.0'}
 
   xmlbuilder@15.1.1:
     resolution: {integrity: sha512-yMqGBqtXyeN1e3TGYvgNgDVZ3j84W4cwkOXQswghol6APgZWaff9lnbvN7MHYJOiXsvGPXtjTYJEiC9J2wv9Eg==}
@@ -3184,6 +3240,8 @@ snapshots:
   '@napi-rs/lzma-linux-x64-gnu@1.5.1':
     optional: true
 
+  '@nodable/entities@3.1.0': {}
+
   '@novastar/codec@2.2.3(debug@4.4.3)(iconv-lite@0.6.3)':
     dependencies:
       debug: 4.4.3
@@ -3216,6 +3274,26 @@ snapshots:
     transitivePeerDependencies:
       - buffer
       - iconv-lite
+
+  '@novastar/screen@2.5.2(debug@4.4.3)(iconv-lite@0.6.3)':
+    dependencies:
+      '@novastar/codec': 2.2.3(debug@4.4.3)(iconv-lite@0.6.3)
+      '@novastar/native': 2.5.1(debug@4.4.3)(iconv-lite@0.6.3)
+      '@novastar/net': 2.2.3(debug@4.4.3)(iconv-lite@0.6.3)
+      '@novastar/serial': 2.2.1(debug@4.4.3)(iconv-lite@0.6.3)
+      '@sarakusha/lzma': 2.3.4
+      '@zip.js/zip.js': 2.24.0
+      adm-zip: 0.5.18
+      debug: 4.4.3
+      fast-xml-parser: 5.11.2
+      fp-ts: 2.16.11
+      io-ts: 2.2.22(fp-ts@2.16.11)
+      lodash: 4.18.1
+      typed-struct: 2.7.3(debug@4.4.3)(iconv-lite@0.6.3)
+    transitivePeerDependencies:
+      - buffer
+      - iconv-lite
+      - supports-color
 
   '@novastar/serial@2.2.1(debug@4.4.3)(iconv-lite@0.6.3)':
     dependencies:
@@ -3328,6 +3406,8 @@ snapshots:
 
   '@rollup/rollup-win32-x64-msvc@4.65.1':
     optional: true
+
+  '@sarakusha/lzma@2.3.4': {}
 
   '@serialport/binding-mock@10.2.2':
     dependencies:
@@ -3571,7 +3651,11 @@ snapshots:
 
   '@xmldom/xmldom@0.9.12': {}
 
+  '@zip.js/zip.js@2.24.0': {}
+
   abbrev@1.1.1: {}
+
+  adm-zip@0.5.18: {}
 
   agent-base@6.0.2:
     dependencies:
@@ -3623,6 +3707,8 @@ snapshots:
   ansi-styles@5.2.0: {}
 
   ansi-styles@6.2.3: {}
+
+  anynum@1.0.1: {}
 
   app-builder-bin@5.0.0-alpha.10: {}
 
@@ -4292,6 +4378,20 @@ snapshots:
 
   fast-uri@3.1.9: {}
 
+  fast-xml-builder@1.3.1:
+    dependencies:
+      path-expression-matcher: 1.6.2
+      xml-naming: 0.3.0
+
+  fast-xml-parser@5.11.2:
+    dependencies:
+      '@nodable/entities': 3.1.0
+      fast-xml-builder: 1.3.1
+      is-unsafe: 2.0.2
+      path-expression-matcher: 1.6.2
+      strnum: 2.5.1
+      xml-naming: 0.3.0
+
   fd-slicer@1.1.0:
     dependencies:
       pend: 1.2.0
@@ -4573,6 +4673,8 @@ snapshots:
   is-potential-custom-element-name@1.0.1: {}
 
   is-unicode-supported@0.1.0: {}
+
+  is-unsafe@2.0.2: {}
 
   isarray@1.0.0: {}
 
@@ -4915,6 +5017,8 @@ snapshots:
     dependencies:
       entities: 6.0.1
 
+  path-expression-matcher@1.6.2: {}
+
   path-is-absolute@1.0.1: {}
 
   path-key@3.1.1: {}
@@ -5233,6 +5337,10 @@ snapshots:
     dependencies:
       min-indent: 1.0.1
 
+  strnum@2.5.1:
+    dependencies:
+      anynum: 1.0.1
+
   stubborn-fs@2.0.0:
     dependencies:
       stubborn-utils: 1.0.2
@@ -5486,6 +5594,8 @@ snapshots:
   ws@8.22.0: {}
 
   xml-name-validator@5.0.0: {}
+
+  xml-naming@0.3.0: {}
 
   xmlbuilder@15.1.1: {}
 

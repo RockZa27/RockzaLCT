@@ -5,6 +5,7 @@ import type { DeviceApi } from '@rockzalct/shared';
 import { getDeviceApi } from './deviceFactory';
 import { registerDeviceIpc } from './ipc';
 import { resolveSmokeOut, runStartup } from './startup';
+import { SMOKE_SCR_BASE64 } from './smokeFixture';
 
 /**
  * `--smoke-test`: boot for real, check the device layer answers and the preload bridge reached the
@@ -45,7 +46,10 @@ function runSmokeTest(win: BrowserWindow, api: DeviceApi): void {
         const bridge = await win.webContents.executeJavaScript('typeof window.rockzalct');
         if (bridge !== 'object') return fail(`preload bridge is ${String(bridge)}`);
         const found = await api.discover();
-        smokeResult(`SMOKE OK bridge=${bridge} discovered=${found.length}`, true);
+        // Decode a bundled .scr through the real parser: proves @novastar/screen loads when packaged.
+        const scr = await api.parseScreenFile({ name: 'smoke.scr', bytes: new Uint8Array(Buffer.from(SMOKE_SCR_BASE64, 'base64')) });
+        if (!scr.ok || scr.info.screens.length !== 1 || !scr.info.layout.ok) return fail(`scr decode failed: ${scr.ok ? 'unexpected layout' : scr.message}`);
+        smokeResult(`SMOKE OK bridge=${bridge} discovered=${found.length} scr=${scr.info.screens[0]!.regions.length}`, true);
         app.exit(0);
       } catch (err) {
         fail(err);

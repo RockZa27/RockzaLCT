@@ -15,6 +15,7 @@ export type PageId =
   | 'smart'
   | 'layout'
   | 'persist'
+  | 'import'
   | 'monitor'
   | 'calibration'
   | 'maintenance'
@@ -34,6 +35,7 @@ const NAV: { id: PageId; label: MessageKey; family?: 'novastar' | 'hseries' | 't
   { id: 'smart', label: 'nav.smart', family: 'novastar' },
   { id: 'layout', label: 'nav.layout', family: 'novastar' },
   { id: 'persist', label: 'nav.persist', family: 'novastar' },
+  { id: 'import', label: 'nav.import', family: 'novastar' },
   { id: 'monitor', label: 'nav.monitor', family: 'novastar' },
   { id: 'calibration', label: 'nav.calibration', family: 'novastar' },
   { id: 'maintenance', label: 'nav.maintenance', family: 'novastar' },

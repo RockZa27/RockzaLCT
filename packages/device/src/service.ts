@@ -30,6 +30,7 @@ import { createMaintenanceFeature } from './features/maintenance.js';
 import { createPersistFeature } from './features/persist.js';
 import { createReceiverFeature } from './features/receiver.js';
 import { createSmartSettingsFeature } from './features/smartSettings.js';
+import { createNovaImportFeature } from './features/novaImport.js';
 import { createSenderFeature } from './features/sender.js';
 import { createHSeriesBackend, type HSeriesBackend } from './hseries/backend.js';
 import { DEFAULT_HSERIES_PORT } from './hseries/protocol.js';
@@ -249,8 +250,11 @@ export function createDeviceService(options: DeviceServiceOptions = {}): DeviceS
     return { entry, session: entry.session };
   };
 
-  /** Run `fn` on the session; a closed connection also drops the registry session. */
-  const withSession = async <T>(id: string, fn: (s: SessionLike) => Promise<T>): Promise<T> => {
+  /** Controllers whose session is held by an exclusive run (a long multi-write job). */
+  const exclusive = new Set<string>();
+  const busy = (): DeviceError => new DeviceError('PROTOCOL', 'controller is busy with a long operation (configuration file being sent); wait for it to finish');
+
+  const runOnSession = async <T>(id: string, fn: (s: SessionLike) => Promise<T>): Promise<T> => {
     const { entry, session } = connected(id);
     try {
       return await guard(() => fn(session));
@@ -260,6 +264,27 @@ export function createDeviceService(options: DeviceServiceOptions = {}): DeviceS
         entry.info = undefined;
       }
       throw err;
+    }
+  };
+
+  /** Run `fn` on the session; a closed connection also drops the registry session. */
+  const withSession = async <T>(id: string, fn: (s: SessionLike) => Promise<T>): Promise<T> => {
+    if (exclusive.has(id)) {
+      connected(id); // NOT_FOUND / NOT_CONNECTED take precedence over "busy"
+      throw busy();
+    }
+    return runOnSession(id, fn);
+  };
+
+  /** withSession that also refuses every other command to this controller until `fn` settles. */
+  const withExclusiveSession = async <T>(id: string, fn: (s: SessionLike) => Promise<T>): Promise<T> => {
+    connected(id);
+    if (exclusive.has(id)) throw busy();
+    exclusive.add(id);
+    try {
+      return await runOnSession(id, fn);
+    } finally {
+      exclusive.delete(id);
     }
   };
 
@@ -564,6 +589,7 @@ export function createDeviceService(options: DeviceServiceOptions = {}): DeviceS
 
   const ctx: FeatureContext = {
     withSession,
+    withExclusiveSession,
     userLevel: () => ({ ...userLevel }),
     timeoutMs,
     hardwareOverrides: () => ({ ...overrides }),
@@ -639,6 +665,14 @@ export function createDeviceService(options: DeviceServiceOptions = {}): DeviceS
         ? t(id, ...args)
         : Promise.reject(new DeviceError('INVALID_ARGUMENT', 'only supported on Taurus players'));
 
+  // parseRcfgxFile / parseScreenFile take a file, not a controller id: only the two id-first methods are routed.
+  const novaImportFeature = createNovaImportFeature(ctx);
+  const novaImport = {
+    parseRcfgxFile: novaImportFeature.parseRcfgxFile,
+    parseScreenFile: novaImportFeature.parseScreenFile,
+    ...mctrlOnly({ sendRcfgx: novaImportFeature.sendRcfgx, getRcfgxProgress: novaImportFeature.getRcfgxProgress }),
+  };
+
   return {
     ...mctrlOnly(createSenderFeature(ctx)),
     ...mctrlOnly(createReceiverFeature(ctx)),
@@ -648,6 +682,7 @@ export function createDeviceService(options: DeviceServiceOptions = {}): DeviceS
     ...mctrlOnly(createMonitorFeature(ctx)),
     ...mctrlOnly(createCalibrationFeature(ctx)),
     ...mctrlOnly(createMaintenanceFeature(ctx)),
+    ...novaImport,
     listScreens: hOnly((id) => hseries.listScreens(id)),
     listPresets: hOnly((id, screenId?: number) => hseries.listPresets(id, screenId)),
     playPreset: hOnly((id, screenId: number, presetId: number) => hseries.playPreset(id, screenId, presetId)),

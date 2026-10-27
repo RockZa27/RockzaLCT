@@ -2,6 +2,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -9,6 +10,7 @@ import {
 } from 'react';
 import type {
   ControllerInfo,
+  LayoutModel,
   DeviceApi,
   DeviceErrorCode,
   DiscoveredController,
@@ -58,6 +60,9 @@ export interface AppState {
   /** Run a device call; failures become localised error toasts and resolve to undefined. */
   run<T>(fn: () => Promise<T>): Promise<T | undefined>;
   dismissToast(id: number): void;
+  /** A layout waiting to be loaded by the Screen connection page (set by the .scr import, taken by LayoutPage). */
+  pendingLayout: LayoutModel | null;
+  setPendingLayout(model: LayoutModel | null): void;
 }
 
 const Ctx = createContext<AppState | null>(null);
@@ -75,7 +80,14 @@ export function AppProvider({ api: rawApi, children }: { api: DeviceApi; childre
   const [pattern, setPatternState] = useState<TestPattern | null>(null);
   const [mode, setModeState] = useState<DisplayMode | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [pendingLayout, setPendingLayout] = useState<LayoutModel | null>(null);
   const nextToast = useRef(1);
+  const toastTimers = useRef(new Set<ReturnType<typeof setTimeout>>());
+  // Pending auto-dismiss timers must not outlive the provider (they would update an unmounted tree).
+  useEffect(() => {
+    const timers = toastTimers.current;
+    return () => timers.forEach(clearTimeout);
+  }, []);
   const discoveredRef = useRef<DiscoveredController[]>([]);
   discoveredRef.current = discovered;
 
@@ -85,7 +97,11 @@ export function AppProvider({ api: rawApi, children }: { api: DeviceApi; childre
     (toast: Omit<Toast, 'id'>) => {
       const id = nextToast.current++;
       setToasts((t) => [...t, { ...toast, id }]);
-      setTimeout(() => dismissToast(id), 6000);
+      const timer = setTimeout(() => {
+        toastTimers.current.delete(timer);
+        dismissToast(id);
+      }, 6000);
+      toastTimers.current.add(timer);
     },
     [dismissToast],
   );
@@ -249,6 +265,8 @@ export function AppProvider({ api: rawApi, children }: { api: DeviceApi; childre
     pushInfo,
     run: guard,
     dismissToast,
+    pendingLayout,
+    setPendingLayout,
   };
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

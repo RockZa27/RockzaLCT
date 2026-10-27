@@ -1,6 +1,6 @@
 {
   "name": "@rockzalct/desktop",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "description": "RockzaLCT desktop app (Electron + React)",
   "main": "out/main/index.js",
@@ -16,11 +16,13 @@
     "@novastar/codec": "^2.2.3",
     "@novastar/native": "^2.5.1",
     "@novastar/net": "^2.2.3",
+    "@novastar/screen": "2.5.2",
     "@novastar/serial": "^2.2.1",
     "@novastar/taurus": "0.4.1",
     "@rockzalct/device": "workspace:*",
     "@rockzalct/shared": "workspace:*",
-    "@rockzalct/simulator": "workspace:*"
+    "@rockzalct/simulator": "workspace:*",
+    "fast-xml-parser": "^5.11.2"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.6.3",

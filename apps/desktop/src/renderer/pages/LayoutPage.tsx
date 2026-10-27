@@ -46,7 +46,7 @@ const initialScreen = (): LayoutScreen => createLayoutScreen(2, 4, 128, 128);
 
 export function LayoutPage() {
   const { t } = useI18n();
-  const { api, connectedId, info, level, run, pushInfo } = useApp();
+  const { api, connectedId, info, level, run, pushInfo, pendingLayout, setPendingLayout } = useApp();
   const connected = connectedId !== null;
   const advanced = level === 'advanced';
 
@@ -66,6 +66,17 @@ export function LayoutPage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [numbersShown, setNumbersShown] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+
+  // A layout handed over by the .scr import replaces the working layout (nothing is written until Send).
+  useEffect(() => {
+    if (!pendingLayout) return;
+    setScreen(pendingLayout.screen);
+    setPorts(pendingLayout.ports);
+    setActivePort(0);
+    setSelected(null);
+    setNotice(null);
+    setPendingLayout(null);
+  }, [pendingLayout, setPendingLayout]);
 
   // A different (or no) controller invalidates what we know about the wall.
   useEffect(() => {

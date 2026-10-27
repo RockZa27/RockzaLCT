@@ -8,6 +8,7 @@ import { BrightnessPage } from './pages/BrightnessPage';
 import { ConnectionPage } from './pages/ConnectionPage';
 import { HSeriesPage } from './pages/HSeriesPage';
 import { LayoutPage } from './pages/LayoutPage';
+import { NovaImportPage } from './pages/NovaImportPage';
 import { MonitorPage } from './pages/MonitorPage';
 import { CalibrationPage } from './pages/CalibrationPage';
 import { MaintenancePage } from './pages/MaintenancePage';
@@ -47,6 +48,7 @@ function Shell() {
       {page === 'smart' && <SmartSettingsPage />}
       {page === 'layout' && <LayoutPage />}
       {page === 'persist' && <PersistPage />}
+      {page === 'import' && <NovaImportPage onNavigate={setPage} />}
       {page === 'monitor' && <MonitorPage />}
       {page === 'calibration' && <CalibrationPage />}
       {page === 'maintenance' && <MaintenancePage />}
