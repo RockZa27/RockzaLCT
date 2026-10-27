@@ -272,7 +272,7 @@ describe('MonitorPage', () => {
     });
     expect(calls(api)).toBe(afterLeave);
 
-    await user.click(screen.getByRole('button', { name: 'Disconnect' }));
+    await user.click(screen.getAllByRole('button', { name: 'Disconnect' })[0]!);
     await user.click(screen.getByRole('button', { name: 'Monitoring' }));
     expect(screen.getByText('Connect to a controller first.')).toBeInTheDocument();
     await act(async () => {

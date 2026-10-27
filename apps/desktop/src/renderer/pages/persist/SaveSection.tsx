@@ -34,7 +34,7 @@ export function SaveSection() {
     const tg = receiverTarget();
     return tg.scope === 'all'
       ? t('persist.save.targetAll')
-      : t('persist.save.targetCard', { port: tg.portIndex, card: tg.cardIndex });
+      : t('persist.save.targetCard', { port: tg.portIndex + 1, card: tg.cardIndex + 1 });
   };
 
   const save = async () => {
@@ -73,7 +73,7 @@ export function SaveSection() {
           <option value="all">{t('persist.save.all')}</option>
           {cards.map((c) => (
             <option key={`${c.portIndex}:${c.cardIndex}`} value={`${c.portIndex}:${c.cardIndex}`}>
-              {t('persist.save.card', { port: c.portIndex, card: c.cardIndex })}
+              {t('persist.save.card', { port: c.portIndex + 1, card: c.cardIndex + 1 })}
             </option>
           ))}
         </select>
@@ -110,7 +110,7 @@ export function SaveSection() {
               <ul>
                 {failures.map((f) => (
                   <li key={`${f.portIndex}:${f.cardIndex}`}>
-                    {t('persist.save.cardFailed', { port: f.portIndex ?? '', card: f.cardIndex ?? '', message: f.message ?? '' })}
+                    {t('persist.save.cardFailed', { port: f.portIndex === undefined ? '' : f.portIndex + 1, card: f.cardIndex === undefined ? '' : f.cardIndex + 1, message: f.message ?? '' })}
                   </li>
                 ))}
                 {result.sender && !result.sender.ok && (

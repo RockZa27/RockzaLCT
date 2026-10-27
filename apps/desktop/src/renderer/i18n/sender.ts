@@ -5,6 +5,9 @@ export const senderEn = {
   'sender.refresh': 'Refresh',
   'sender.advancedOnly': 'Advanced level required to change these settings (use Advanced login).',
   'sender.locked': 'Locked',
+  'sender.loading': 'Reading the current input settings from the device…',
+  'sender.loadFailed': 'Could not read the current input settings, so they cannot be changed safely.',
+  'sender.retry': 'Retry',
 
   'sender.video.title': 'Input',
   'sender.video.signal': 'Input signal',
@@ -66,6 +69,9 @@ export const senderTh: Record<keyof typeof senderEn, string> = {
   'sender.refresh': 'รีเฟรช',
   'sender.advancedOnly': 'ต้องเป็นผู้ใช้ระดับขั้นสูงจึงจะแก้ไขค่าเหล่านี้ได้ (เข้าสู่ระบบขั้นสูง)',
   'sender.locked': 'ล็อก',
+  'sender.loading': 'กำลังอ่านการตั้งค่าสัญญาณขาเข้าปัจจุบันจากอุปกรณ์…',
+  'sender.loadFailed': 'อ่านการตั้งค่าสัญญาณขาเข้าปัจจุบันไม่ได้ จึงยังแก้ไขอย่างปลอดภัยไม่ได้',
+  'sender.retry': 'ลองอีกครั้ง',
 
   'sender.video.title': 'สัญญาณขาเข้า',
   'sender.video.signal': 'สัญญาณขาเข้า',

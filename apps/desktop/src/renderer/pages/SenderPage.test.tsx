@@ -178,7 +178,7 @@ describe('SenderPage', () => {
     });
     const { user } = renderApp(api, 'en');
     await connectAndGo(user, screen, 'Sending card');
-    expect(await screen.findByRole('alert')).toHaveTextContent('The controller did not respond in time.');
+    expect(await screen.findByText('The controller did not respond in time.')).toBeInTheDocument();
     // The other sections still load.
     expect(await screen.findByTestId('port-row-0')).toBeInTheDocument();
   });
@@ -211,5 +211,31 @@ describe('SenderPage', () => {
     await waitFor(() => expect(api.getSenderVideo).toHaveBeenCalledTimes(2));
     expect(api.getSenderPorts).toHaveBeenCalledTimes(2);
     expect(api.getSenderRedundancy).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('SenderPage: review regressions', () => {
+  it('keeps input source, refresh rate and resolution disabled until the video status was read; Retry recovers', async () => {
+    const getSenderVideo = vi
+      .fn()
+      .mockRejectedValueOnce(new DeviceError('TIMEOUT', 'x'))
+      .mockResolvedValue(VIDEO);
+    const api = senderApi({ getSenderVideo });
+    const { user } = renderApp(api, 'en');
+    await connectAndGo(user, screen, 'Sending card');
+    await login(user);
+    expect(await screen.findByTestId('sender-load-error')).toBeInTheDocument();
+    for (const name of ['Apply input source', 'Apply refresh rate', 'Apply resolution']) {
+      expect(screen.getByRole('button', { name })).toBeDisabled();
+    }
+    expect(screen.getByLabelText('Input source')).toBeDisabled();
+    expect(api.setSenderInputSource).not.toHaveBeenCalled();
+    expect(api.setSenderFieldRate).not.toHaveBeenCalled();
+
+    await user.click(within(screen.getByTestId('sender-load-error')).getByRole('button', { name: 'Retry' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Apply input source' })).toBeEnabled());
+    expect(screen.getByLabelText('Input source')).toHaveValue('HDMI');
+    expect(screen.getByRole('button', { name: 'Apply refresh rate' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Apply resolution' })).toBeEnabled();
   });
 });

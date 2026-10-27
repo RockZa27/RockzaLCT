@@ -132,7 +132,7 @@ export function LoadSection() {
   };
 
   const stepLabel = (s: { kind: string; portIndex?: number; cardIndex?: number }): string =>
-    t(`persist.step.${s.kind}` as MessageKey, { port: s.portIndex ?? '', card: s.cardIndex ?? '' });
+    t(`persist.step.${s.kind}` as MessageKey, { port: s.portIndex === undefined ? '' : s.portIndex + 1, card: s.cardIndex === undefined ? '' : s.cardIndex + 1 });
 
   return (
     <div className="card" role="group" aria-labelledby="persist-load-title">
@@ -196,7 +196,7 @@ export function LoadSection() {
           {missing.length > 0 && (
             <>
               <p className="field-error" role="alert">
-                {t('persist.load.missingCards', { cards: missing.map((m) => `${m.portIndex}/${m.cardIndex}`).join(', ') })}
+                {t('persist.load.missingCards', { cards: missing.map((m) => `${m.portIndex + 1}/${m.cardIndex + 1}`).join(', ') })}
               </p>
               <label>
                 <input type="checkbox" checked={skipMissing} onChange={(e) => setSkipMissing(e.target.checked)} /> {t('persist.load.skipMissing')}
@@ -206,8 +206,8 @@ export function LoadSection() {
           {compared.diff.skippedCards.map((s) => (
             <p key={`${s.portIndex}:${s.cardIndex}`} className="muted">
               {t('persist.load.skippedCards', {
-                port: s.portIndex,
-                card: s.cardIndex,
+                port: s.portIndex + 1,
+                card: s.cardIndex + 1,
                 reason: t(`persist.reason.${s.reason}` as MessageKey),
               })}
             </p>

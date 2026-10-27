@@ -22,7 +22,7 @@ export function DownloadSection({
   onBackedUp(card: CardRef, range: { offset: number; length: number }): void;
 }) {
   const { t } = useI18n();
-  const { api, connectedId, info } = useApp();
+  const { api, connectedId, info, pushInfo } = useApp();
   const [offset, setOffset] = useState('0');
   const [length, setLength] = useState(String(COEFFICIENT_REGION.sizeBytes));
   const [message, setMessage] = useState('');
@@ -45,6 +45,10 @@ export function DownloadSection({
     const options = transfer.start('download', len);
     try {
       const { result: res, fileName } = await backupCard(api, connectedId, info, card, off, len, options);
+      if (transfer.unmounted.current) {
+        pushInfo(t('cal.dl.cancelledOnLeave'));
+        return;
+      }
       if (res.ok && fileName) {
         onBackedUp(card, { offset: off, length: len });
         setMessage(t('cal.dl.done', { bytes: len, file: fileName }));

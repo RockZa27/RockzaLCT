@@ -22,6 +22,7 @@ export function SenderPage() {
   const [ports, setPorts] = useState<SenderPortStatus[] | null>(null);
   const [redundancy, setRedundancy] = useState<SenderRedundancyStatus | null>(null);
   const [busy, setBusy] = useState(false);
+  const [videoFailed, setVideoFailed] = useState(false);
 
   const [width, setWidth] = useState(0);
   const [height, setHeight] = useState(0);
@@ -50,6 +51,7 @@ export function SenderPage() {
   const load = useCallback(async () => {
     if (!connectedId) return;
     const [v, p, r] = await fetchAll(connectedId);
+    setVideoFailed(!v);
     if (v) adoptVideo(v);
     if (p) setPorts(p);
     if (r) setRedundancy(r);
@@ -59,10 +61,12 @@ export function SenderPage() {
     setVideo(null);
     setPorts(null);
     setRedundancy(null);
+    setVideoFailed(false);
     if (!connectedId) return;
     let cancelled = false;
     void fetchAll(connectedId).then(([v, p, r]) => {
       if (cancelled) return;
+      setVideoFailed(!v);
       if (v) adoptVideo(v);
       if (p) setPorts(p);
       if (r) setRedundancy(r);
@@ -99,6 +103,9 @@ export function SenderPage() {
     }
   };
 
+  // The video writes must never run with the placeholder defaults (DVI / 0): wait for a real read.
+  const videoDisabled = advancedDisabled || video === null;
+
   const lockBadge = locked && (
     <span className="muted" data-testid="locked-badge">
       {' '}
@@ -120,6 +127,15 @@ export function SenderPage() {
           {t('sender.refresh')}
         </button>
       </div>
+      {!disabled && videoFailed && (
+        <div className="field-error" role="alert" data-testid="sender-load-error">
+          <p>{t('sender.loadFailed')}</p>
+          <button type="button" onClick={() => void load()}>
+            {t('sender.retry')}
+          </button>
+        </div>
+      )}
+      {!disabled && !videoFailed && video === null && <p className="muted">{t('sender.loading')}</p>}
 
       <div className="card">
         <h2>{t('sender.video.title')}</h2>
@@ -153,7 +169,7 @@ export function SenderPage() {
               min={1}
               max={65535}
               value={width}
-              disabled={advancedDisabled}
+              disabled={videoDisabled}
               aria-label={t('sender.video.width')}
               onChange={(e) => e.target.value !== '' && setWidth(clampInt(Number(e.target.value), 1, 65535))}
             />
@@ -165,7 +181,7 @@ export function SenderPage() {
               min={1}
               max={65535}
               value={height}
-              disabled={advancedDisabled}
+              disabled={videoDisabled}
               aria-label={t('sender.video.height')}
               onChange={(e) => e.target.value !== '' && setHeight(clampInt(Number(e.target.value), 1, 65535))}
             />
@@ -173,7 +189,7 @@ export function SenderPage() {
           <button
             type="button"
             className="primary"
-            disabled={advancedDisabled || busy}
+            disabled={videoDisabled || busy}
             onClick={() =>
               connectedId &&
               void apply(() => api.setSenderResolution(connectedId, { width, height }), t('sender.video.resolutionApplied'))
@@ -193,14 +209,14 @@ export function SenderPage() {
             min={0}
             max={65535}
             value={fieldRate}
-            disabled={advancedDisabled}
+            disabled={videoDisabled}
             aria-label={t('sender.video.fieldRate')}
             onChange={(e) => e.target.value !== '' && setFieldRate(clampInt(Number(e.target.value), 0, 65535))}
           />
           <button
             type="button"
             className="primary"
-            disabled={advancedDisabled || busy}
+            disabled={videoDisabled || busy}
             onClick={() =>
               connectedId &&
               void apply(() => api.setSenderFieldRate(connectedId, fieldRate), t('sender.video.fieldRateApplied'))
@@ -222,7 +238,7 @@ export function SenderPage() {
         <div className="row">
           <select
             value={source}
-            disabled={advancedDisabled}
+            disabled={videoDisabled}
             aria-label={t('sender.video.source')}
             onChange={(e) => setSource(e.target.value as SenderInputSource)}
           >
@@ -235,7 +251,7 @@ export function SenderPage() {
           <button
             type="button"
             className="primary"
-            disabled={advancedDisabled || busy}
+            disabled={videoDisabled || busy}
             onClick={() =>
               connectedId &&
               void apply(() => api.setSenderInputSource(connectedId, source), t('sender.video.sourceApplied'))

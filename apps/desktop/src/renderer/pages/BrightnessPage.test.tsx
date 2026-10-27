@@ -60,7 +60,41 @@ describe('BrightnessPage', () => {
     });
     const { user } = renderApp(api, 'en');
     await connectAndGo(user, screen, 'Brightness');
-    await user.click(await screen.findByRole('button', { name: 'Apply' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Apply' })).toBeEnabled());
+    await user.click(screen.getByRole('button', { name: 'Apply' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Invalid value.');
+  });
+});
+
+describe('BrightnessPage: review regressions', () => {
+  it('never offers a writable default: a failed read disables Apply and inputs, shows the error and a Retry that recovers', async () => {
+    const { DeviceError } = await import('@rockzalct/shared');
+    const getBrightness = vi
+      .fn()
+      .mockRejectedValueOnce(new DeviceError('TIMEOUT', 'x'))
+      .mockResolvedValue({ percent: 55, red: 100, green: 100, blue: 100 });
+    const api = makeFakeApi({ getBrightness });
+    const { user } = renderApp(api, 'en');
+    await connectAndGo(user, screen, 'Brightness');
+    expect(await screen.findByTestId('bri-load-error')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Apply' })).toBeDisabled();
+    expect(screen.getByLabelText('Global brightness')).toBeDisabled();
+    expect(screen.getByLabelText('Global brightness (number)')).toBeDisabled();
+    expect(api.setBrightness).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'Retry' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Apply' })).toBeEnabled());
+    expect(screen.getByLabelText('Global brightness (number)')).toHaveValue(55);
+    expect(screen.queryByTestId('bri-load-error')).not.toBeInTheDocument();
+  });
+
+  it('keeps Apply disabled while the first read is still in flight', async () => {
+    let resolve: (v: { percent: number; red: number; green: number; blue: number }) => void = () => {};
+    const api = makeFakeApi({ getBrightness: vi.fn(() => new Promise((r) => { resolve = r; })) as never });
+    const { user } = renderApp(api, 'en');
+    await connectAndGo(user, screen, 'Brightness');
+    expect(screen.getByRole('button', { name: 'Apply' })).toBeDisabled();
+    resolve({ percent: 30, red: 100, green: 100, blue: 100 });
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Apply' })).toBeEnabled());
   });
 });

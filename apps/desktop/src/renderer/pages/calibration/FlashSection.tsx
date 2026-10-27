@@ -77,6 +77,10 @@ export function FlashSection({
     const options = transfer.start('download', COEFFICIENT_REGION.sizeBytes);
     try {
       const { result, fileName } = await backupCard(api, connectedId, info, card, 0, COEFFICIENT_REGION.sizeBytes, options);
+      if (transfer.unmounted.current) {
+        pushInfo(t('cal.dl.cancelledOnLeave'));
+        return;
+      }
       if (result.ok && fileName) {
         onBackedUp(card, { offset: 0, length: COEFFICIENT_REGION.sizeBytes });
         setMessage(t('cal.dl.done', { bytes: COEFFICIENT_REGION.sizeBytes, file: fileName }));

@@ -26,23 +26,32 @@ export function BrightnessPage() {
   const [values, setValues] = useState<BrightnessState>({ percent: 0, red: 100, green: 100, blue: 100 });
   const [readback, setReadback] = useState<BrightnessState | null>(null);
   const [busy, setBusy] = useState(false);
-  const disabled = connectedId === null;
+  // Nothing is writable until the device's real values have been read once (a default of 0% would black out the wall).
+  const [loadState, setLoadState] = useState<'loading' | 'ready' | 'failed'>('loading');
+  const [attempt, setAttempt] = useState(0);
+  const notConnected = connectedId === null;
+  const disabled = notConnected || loadState !== 'ready';
 
-  // Load the device's current values whenever a controller becomes active.
+  // Load the device's current values whenever a controller becomes active (and on Retry).
   useEffect(() => {
     setReadback(null);
+    setLoadState('loading');
     if (!connectedId) return;
     let cancelled = false;
     void run(() => api.getBrightness(connectedId)).then((b) => {
-      if (b && !cancelled) {
+      if (cancelled) return;
+      if (b) {
         setValues(b);
         setReadback(b);
+        setLoadState('ready');
+      } else {
+        setLoadState('failed');
       }
     });
     return () => {
       cancelled = true;
     };
-  }, [api, connectedId, run]);
+  }, [api, connectedId, run, attempt]);
 
   const set = (key: Channel, raw: string) => {
     if (raw === '') return;
@@ -71,7 +80,16 @@ export function BrightnessPage() {
   return (
     <section>
       <h1>{t('bri.title')}</h1>
-      {disabled && <p className="muted">{t('bri.needConnect')}</p>}
+      {notConnected && <p className="muted">{t('bri.needConnect')}</p>}
+      {!notConnected && loadState === 'loading' && <p className="muted">{t('bri.loading')}</p>}
+      {!notConnected && loadState === 'failed' && (
+        <div className="field-error" role="alert" data-testid="bri-load-error">
+          <p>{t('bri.loadFailed')}</p>
+          <button type="button" onClick={() => setAttempt((n) => n + 1)}>
+            {t('bri.retry')}
+          </button>
+        </div>
+      )}
       {hseries && <p className="muted">{t('bri.hseriesNote')}</p>}
       {taurus && <p className="muted">{t('bri.taurusNote')}</p>}
 

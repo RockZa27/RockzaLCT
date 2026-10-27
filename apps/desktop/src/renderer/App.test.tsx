@@ -1,5 +1,6 @@
 import { screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { DeviceError } from '@rockzalct/shared';
 import { makeFakeApi, renderApp } from './testUtils';
 
 describe('App shell', () => {
@@ -33,5 +34,20 @@ describe('App shell', () => {
     expect(await screen.findByText('Level: Advanced')).toBeInTheDocument();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(api.login).toHaveBeenLastCalledWith('secret');
+  });
+
+  it('login: a thrown error shows the localised error, not "Wrong password"', async () => {
+    const api = makeFakeApi({
+      login: vi.fn(async () => {
+        throw new DeviceError('TIMEOUT', 'x');
+      }) as never,
+    });
+    const { user } = renderApp(api);
+    await user.click(screen.getByRole('button', { name: 'Advanced login' }));
+    await user.type(screen.getByLabelText('Password'), 'secret');
+    await user.click(screen.getByRole('button', { name: 'Log in' }));
+    expect(await screen.findByText('The controller did not respond in time.')).toBeInTheDocument();
+    expect(screen.queryByText('Wrong password')).not.toBeInTheDocument();
+    expect(screen.getByTestId('user-level')).toHaveTextContent('Level: Normal');
   });
 });

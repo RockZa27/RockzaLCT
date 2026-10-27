@@ -1,24 +1,27 @@
 import { useState, type FormEvent } from 'react';
 import { useI18n } from '../i18n/I18nProvider';
+import type { MessageKey } from '../i18n/dictionary';
 import { useApp } from '../state/AppContext';
 
 export function LoginModal({ onClose }: { onClose(): void }) {
   const { t } = useI18n();
   const { login, pushInfo } = useApp();
   const [password, setPassword] = useState('');
-  const [wrong, setWrong] = useState(false);
+  const [failure, setFailure] = useState<null | 'wrong' | MessageKey>(null);
   const [busy, setBusy] = useState(false);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setBusy(true);
-    const ok = await login(password);
+    const res = await login(password);
     setBusy(false);
-    if (ok) {
+    if (res.status === 'ok') {
       pushInfo(t('login.success'));
       onClose();
-    } else {
-      setWrong(true);
+    } else if (res.status === 'wrong') {
+      setFailure('wrong');
+    } else if (res.status === 'error') {
+      setFailure(`error.${res.code}` as MessageKey);
     }
   };
 
@@ -34,13 +37,13 @@ export function LoginModal({ onClose }: { onClose(): void }) {
             value={password}
             onChange={(e) => {
               setPassword(e.target.value);
-              setWrong(false);
+              setFailure(null);
             }}
           />
         </label>
-        {wrong && (
+        {failure && (
           <p className="field-error" role="alert">
-            {t('login.wrong')}
+            {t(failure === 'wrong' ? 'login.wrong' : failure)}
           </p>
         )}
         <div className="row end">
