@@ -180,10 +180,10 @@ describe('PersistPage: save to hardware', () => {
   it('saves one chosen card without the sender by default', async () => {
     const { api, user } = await open();
     await loginAdvanced(user);
-    await user.selectOptions(screen.getByLabelText('Save which cards'), 'Port 1 / Card 0');
+    await user.selectOptions(screen.getByLabelText('Save which cards'), 'Port 2 / Card 1');
     expect(screen.getByLabelText('Also save the sending card')).not.toBeChecked();
     await user.click(screen.getByRole('button', { name: 'Save to hardware…' }));
-    expect(screen.getByRole('dialog')).toHaveTextContent('port 1 / card 0');
+    expect(screen.getByRole('dialog')).toHaveTextContent('port 2 / card 1');
     await user.click(screen.getByRole('button', { name: 'Yes, continue' }));
     await waitFor(() =>
       expect(api.saveToHardware).toHaveBeenCalledWith(CONTROLLER.id, { scope: 'card', portIndex: 1, cardIndex: 0 }, { includeSender: false }),
@@ -203,9 +203,9 @@ describe('PersistPage: save to hardware', () => {
     await user.click(screen.getByRole('button', { name: 'Yes, continue' }));
     const res = await screen.findByTestId('save-result');
     expect(res).toHaveTextContent('Some items could not be saved:');
-    expect(res).toHaveTextContent('Port 1 / Card 0: no ack');
+    expect(res).toHaveTextContent('Port 2 / Card 1: no ack');
     expect(res).toHaveTextContent('Sending card: sender timed out');
-    expect(res).not.toHaveTextContent('Port 0 / Card 0');
+    expect(res).not.toHaveTextContent('Port 1 / Card 1');
   });
 
   it('shows a device error as a toast and no result', async () => {
@@ -279,7 +279,7 @@ describe('PersistPage: read back and save a file', () => {
     const { user } = await open({ readScreenConfig: vi.fn(async () => partial) });
     await user.click(screen.getByRole('button', { name: 'Read from controller' }));
     const result = await screen.findByTestId('read-result');
-    expect(result).toHaveTextContent('Receiving card port 1 / card 0: card not answering');
+    expect(result).toHaveTextContent('Receiving card port 2 / card 1: card not answering');
     expect(result).toHaveTextContent('do not form a regular grid');
     expect(result).toHaveTextContent('The snapshot is incomplete');
     expect(within(result).getByRole('button', { name: 'Save config file…' })).toBeEnabled();
@@ -316,9 +316,9 @@ describe('PersistPage: open a file and apply it', () => {
     const table = await screen.findByTestId('diff-table');
     const rows = within(table).getAllByRole('row').slice(1).map((r) => within(r).getAllByRole('cell').map((c) => c.textContent));
     expect(rows).toEqual([
-      ['Receiving card', 'Port 1 / Card 0', 'Gamma (raw)', '28', '31'],
+      ['Receiving card', 'Port 2 / Card 1', 'Gamma (raw)', '28', '31'],
       ['Sending card', 'Screen', 'Input resolution', '1920x1080', '1280x720'],
-      ['Sending card', 'Port 1', 'Port enabled', 'true', 'false'],
+      ['Sending card', 'Port 2', 'Port enabled', 'true', 'false'],
     ]);
     expect(screen.getByText('3 change(s) would be written:')).toBeInTheDocument();
     expect(api.applyScreenConfig).not.toHaveBeenCalled();
@@ -339,7 +339,7 @@ describe('PersistPage: open a file and apply it', () => {
     const result = await screen.findByTestId('apply-result');
     expect(result).toHaveTextContent('Applied: 3 step(s) written.');
     expect(within(result).getAllByRole('listitem')).toHaveLength(3);
-    expect(within(result).getAllByRole('listitem')[0]).toHaveTextContent('Receiving card port 1 / card 0: written');
+    expect(within(result).getAllByRole('listitem')[0]).toHaveTextContent('Receiving card port 2 / card 1: written');
   });
 
   it('cannot apply at normal level, but can still compare', async () => {
@@ -387,7 +387,7 @@ describe('PersistPage: open a file and apply it', () => {
     await loginAdvanced(user);
     await upload(user, serializeScreenConfig(extra));
     await user.click(await screen.findByRole('button', { name: 'Compare with the controller' }));
-    expect(await screen.findByText('The controller has no receiving card at: 1/4.')).toBeInTheDocument();
+    expect(await screen.findByText('The controller has no receiving card at: 2/5.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Apply to controller…' })).toBeDisabled();
     await user.click(screen.getByLabelText('Skip those cards and apply the rest'));
     expect(screen.getByRole('button', { name: 'Apply to controller…' })).toBeEnabled();

@@ -6,7 +6,7 @@ import type { MessageKey } from '../../i18n/dictionary';
 export function StepList({ steps }: { steps: readonly ApplyStepResult[] }) {
   const { t } = useI18n();
   const label = (s: ApplyStepResult): string =>
-    t(`persist.step.${s.kind}` as MessageKey, { port: s.portIndex ?? '', card: s.cardIndex ?? '' });
+    t(`persist.step.${s.kind}` as MessageKey, { port: s.portIndex === undefined ? '' : s.portIndex + 1, card: s.cardIndex === undefined ? '' : s.cardIndex + 1 });
   const detail = (s: ApplyStepResult): string => {
     if (!s.message) return '';
     if (s.status === 'skipped' && (s.message === 'unconfigured' || s.message === 'invalid')) {

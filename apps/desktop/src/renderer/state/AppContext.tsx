@@ -33,6 +33,8 @@ export interface AppState {
   api: DeviceApi;
   discovered: DiscoveredController[];
   scanning: boolean;
+  /** Id of the connected controller when the last scan did not list it (it is kept in the list anyway). */
+  missingFromScan: string | null;
   scan(netHosts: string[]): Promise<void>;
   connectedId: string | null;
   connecting: boolean;
@@ -45,7 +47,8 @@ export interface AppState {
   connectWithPassword(id: string, credentials: TaurusCredentials): Promise<'ok' | 'rejected' | 'failed'>;
   disconnect(): Promise<void>;
   level: UserLevel['level'];
-  login(password: string): Promise<boolean>;
+  /** 'wrong' = the device answered false; 'error' = the call itself failed (code is shown by the caller). */
+  login(password: string): Promise<{ status: 'ok' | 'wrong' } | { status: 'error'; code: DeviceErrorCode }>;
   pattern: TestPattern | null;
   mode: DisplayMode | null;
   setPattern(p: TestPattern): Promise<void>;
@@ -63,6 +66,8 @@ export function AppProvider({ api: rawApi, children }: { api: DeviceApi; childre
   const api = useMemo(() => wrapDeviceApi(rawApi), [rawApi]);
   const [discovered, setDiscovered] = useState<DiscoveredController[]>([]);
   const [scanning, setScanning] = useState(false);
+  const [missingFromScan, setMissingFromScan] = useState<string | null>(null);
+  const connectedRef = useRef<DiscoveredController | null>(null);
   const [connectedId, setConnectedId] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
   const [info, setInfo] = useState<ControllerInfo | null>(null);
@@ -71,6 +76,8 @@ export function AppProvider({ api: rawApi, children }: { api: DeviceApi; childre
   const [mode, setModeState] = useState<DisplayMode | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const nextToast = useRef(1);
+  const discoveredRef = useRef<DiscoveredController[]>([]);
+  discoveredRef.current = discovered;
 
   const dismissToast = useCallback((id: number) => setToasts((t) => t.filter((x) => x.id !== id)), []);
 
@@ -103,7 +110,17 @@ export function AppProvider({ api: rawApi, children }: { api: DeviceApi; childre
       setScanning(true);
       try {
         const found = await guard(() => api.discover(netHosts.length ? { netHosts } : undefined));
-        if (found) setDiscovered(found);
+        if (found) {
+          // Never drop the connected controller from the list: it is still connected and needs its Disconnect button.
+          const keep = connectedRef.current;
+          if (keep && !found.some((c) => c.id === keep.id)) {
+            setDiscovered([...found, keep]);
+            setMissingFromScan(keep.id);
+          } else {
+            setDiscovered(found);
+            setMissingFromScan(null);
+          }
+        }
       } finally {
         setScanning(false);
       }
@@ -117,6 +134,7 @@ export function AppProvider({ api: rawApi, children }: { api: DeviceApi; childre
       try {
         const result = await guard(() => api.connect(id));
         if (result) {
+          connectedRef.current = discoveredRef.current.find((c) => c.id === id) ?? { id, transport: 'serial', address: id, label: id };
           setConnectedId(id);
           setInfo(result);
           setPatternState(null);
@@ -135,6 +153,7 @@ export function AppProvider({ api: rawApi, children }: { api: DeviceApi; childre
       try {
         await api.setTaurusCredentials(id, credentials);
         const result = await api.connect(id);
+        connectedRef.current = discoveredRef.current.find((c) => c.id === id) ?? { id, transport: 'taurus', address: id, label: id };
         setConnectedId(id);
         setInfo(result);
         setPatternState(null);
@@ -159,6 +178,8 @@ export function AppProvider({ api: rawApi, children }: { api: DeviceApi; childre
       return true;
     });
     if (ok) {
+      connectedRef.current = null;
+      setMissingFromScan(null);
       setConnectedId(null);
       setInfo(null);
       setPatternState(null);
@@ -167,12 +188,19 @@ export function AppProvider({ api: rawApi, children }: { api: DeviceApi; childre
   }, [api, guard, connectedId]);
 
   const login = useCallback(
-    async (password: string) => {
-      const ok = await guard(() => api.login(password));
-      if (ok) setLevel('advanced');
-      return ok === true;
+    async (password: string): Promise<{ status: 'ok' | 'wrong' } | { status: 'error'; code: DeviceErrorCode }> => {
+      try {
+        const ok = await api.login(password);
+        if (ok === true) {
+          setLevel('advanced');
+          return { status: 'ok' };
+        }
+        return { status: 'wrong' };
+      } catch (e) {
+        return { status: 'error', code: decodeError(e).code };
+      }
     },
-    [api, guard],
+    [api],
   );
 
   const setPattern = useCallback(
@@ -203,6 +231,7 @@ export function AppProvider({ api: rawApi, children }: { api: DeviceApi; childre
     api,
     discovered,
     scanning,
+    missingFromScan,
     scan,
     connectedId,
     connecting,

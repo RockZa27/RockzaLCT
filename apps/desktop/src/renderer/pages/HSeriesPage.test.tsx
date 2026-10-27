@@ -105,7 +105,7 @@ describe('navigation per controller family', () => {
   it('returns to every page after disconnecting', async () => {
     const { user } = renderApp(hApi());
     await connectAndGo(user, screen);
-    await user.click(screen.getByRole('button', { name: 'Disconnect' }));
+    await user.click(screen.getAllByRole('button', { name: 'Disconnect' })[0]!);
     await waitFor(() => expect(navNames()).toContain('Sending card'));
   });
 });

@@ -6,7 +6,7 @@ import { useApp } from '../state/AppContext';
 
 export function ConnectionPage() {
   const { t } = useI18n();
-  const { discovered, scanning, scan, connectedId, connecting, info, connect, disconnect } = useApp();
+  const { discovered, scanning, missingFromScan, scan, connectedId, connecting, info, connect, disconnect } = useApp();
   const [hosts, setHosts] = useState('');
   // A Taurus needs its password before connecting: ask for it first.
   const [askPassword, setAskPassword] = useState<DiscoveredController | null>(null);
@@ -54,7 +54,15 @@ export function ConnectionPage() {
             <tbody>
               {discovered.map((c) => (
                 <tr key={c.id}>
-                  <td>{c.label}</td>
+                  <td>
+                    {c.label}
+                    {missingFromScan === c.id && (
+                      <span className="muted" data-testid="not-in-scan">
+                        {' '}
+                        ({t('conn.notInScan')})
+                      </span>
+                    )}
+                  </td>
                   <td>
                     {t(
                       c.transport === 'serial'
@@ -92,6 +100,11 @@ export function ConnectionPage() {
       {info && (
         <div className="card" data-testid="controller-info">
           <h2>{t('conn.info')}</h2>
+          <div className="row">
+            <button type="button" onClick={() => void disconnect()}>
+              {t('conn.disconnect')}
+            </button>
+          </div>
           <dl className="kv">
             <dt>{t('conn.model')}</dt>
             <dd>{info.model}</dd>

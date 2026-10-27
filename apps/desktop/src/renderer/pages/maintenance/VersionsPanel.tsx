@@ -53,7 +53,7 @@ export function VersionsPanel({ address }: { address: number | null }) {
             </tr>
             {versions.receivers.map((r) => (
               <tr key={`${r.portIndex}:${r.cardIndex}`}>
-                <td>{t('maint.ver.card', { port: r.portIndex, card: r.cardIndex })}</td>
+                <td>{t('maint.ver.card', { port: r.portIndex + 1, card: r.cardIndex + 1 })}</td>
                 <td>{cell(r.mcu)}</td>
                 <td>{cell(r.fpga)}</td>
               </tr>

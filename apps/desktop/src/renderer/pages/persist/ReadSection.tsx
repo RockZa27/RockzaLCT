@@ -46,7 +46,7 @@ export function ReadSection() {
   };
 
   const failureText = (f: ConfigReadFailure): string =>
-    `${t(`persist.read.failure.${f.part}` as MessageKey, { port: f.portIndex ?? '', card: f.cardIndex ?? '' })}: ${f.message}`;
+    `${t(`persist.read.failure.${f.part}` as MessageKey, { port: f.portIndex === undefined ? '' : f.portIndex + 1, card: f.cardIndex === undefined ? '' : f.cardIndex + 1 })}: ${f.message}`;
 
   return (
     <div className="card" role="group" aria-labelledby="persist-read-title">

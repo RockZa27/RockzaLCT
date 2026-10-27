@@ -43,7 +43,7 @@ export function UploadSection({
   onBackedUp(card: CardRef, range: { offset: number; length: number }): void;
 }) {
   const { t } = useI18n();
-  const { api, connectedId, info, level } = useApp();
+  const { api, connectedId, info, level, pushInfo } = useApp();
   const advanced = level === 'advanced';
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [fileError, setFileError] = useState('');
@@ -97,6 +97,10 @@ export function UploadSection({
     try {
       if (backup) {
         const read = await downloadCoefficients(io, offset, length, transfer.start('backup', length));
+        if (transfer.unmounted.current) {
+          pushInfo(t('cal.up.cancelledOnLeave', { written: t('cal.up.nothingWritten') }));
+          return;
+        }
         if (!read.ok) {
           setOutcome({
             kind: 'backup-failed',
@@ -121,7 +125,21 @@ export function UploadSection({
         done.push(t('cal.up.backupSaved', { file: name }));
         setNotes([...done]);
       }
+      if (transfer.unmounted.current) return; // left the page during the backup: never start writing
       const result = await uploadCoefficients(io, offset, loaded.bytes, transfer.start('upload', length));
+      if (transfer.unmounted.current) {
+        pushInfo(
+          t('cal.up.cancelledOnLeave', {
+            written:
+              result.ranges.length === 0
+                ? t('cal.up.nothingWritten')
+                : t('cal.up.written', {
+                    ranges: result.ranges.map((r) => `${hex(r.offset)}–${hex(r.offset + r.length)}`).join(', '),
+                  }),
+          }),
+        );
+        return;
+      }
       if (result.ok) setOutcome({ kind: 'ok', bytes: length, port: card.portIndex, card: card.cardIndex });
       else {
         setOutcome({

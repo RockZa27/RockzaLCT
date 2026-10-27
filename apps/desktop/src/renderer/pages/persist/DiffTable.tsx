@@ -7,9 +7,9 @@ export function DiffTable({ items }: { items: readonly ConfigDiffItem[] }) {
   const { t } = useI18n();
   const where = (i: ConfigDiffItem): string => {
     if (i.portIndex !== undefined && i.cardIndex !== undefined) {
-      return t('persist.target.card', { port: i.portIndex, card: i.cardIndex });
+      return t('persist.target.card', { port: i.portIndex + 1, card: i.cardIndex + 1 });
     }
-    if (i.portIndex !== undefined) return t('persist.target.port', { port: i.portIndex });
+    if (i.portIndex !== undefined) return t('persist.target.port', { port: i.portIndex + 1 });
     return t('persist.target.screen');
   };
   const value = (v: string | null): string => (v === null ? t('persist.diff.unknown') : v);

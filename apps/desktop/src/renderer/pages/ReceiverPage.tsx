@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   GRAY_MODE_NAMES,
   GRAY_REALIZE_NAMES,
@@ -13,6 +13,7 @@ import {
 import { useI18n } from '../i18n/I18nProvider';
 import type { MessageKey } from '../i18n/dictionary';
 import { useApp } from '../state/AppContext';
+import { ConfirmDialog } from './persist/ConfirmDialog';
 
 const LIBRARY_KEY = 'rockzalct.modules';
 
@@ -169,6 +170,12 @@ export function ReceiverPage() {
   const [edit, setEdit] = useState<EditState | null>(null);
   const [allCards, setAllCards] = useState(false);
   const [busy, setBusy] = useState(false);
+  // A write waits here for the operator's confirmation; the target is frozen when the dialog opens.
+  const [pending, setPending] = useState<
+    { kind: 'settings'; target: ReceiverTarget } | { kind: 'profile'; target: ReceiverTarget; profile: ModuleProfile } | null
+  >(null);
+  // Only the newest load() may update the form; responses for a previous card are discarded.
+  const loadToken = useRef(0);
 
   const [library, setLibrary] = useState<ModuleProfile[]>(loadLibrary);
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
@@ -187,13 +194,17 @@ export function ReceiverPage() {
     setSelected(first ? `${first.portIndex}:${first.cardIndex}` : '');
     setParams(null);
     setEdit(null);
+    setAllCards(false);
+    setPending(null);
   }, [cards]);
 
   const load = useCallback(async () => {
     if (!connectedId || !card) return;
+    const token = ++loadToken.current;
     setLoading(true);
     try {
       const p = await run(() => api.getReceiverParameters(connectedId, card.portIndex, card.cardIndex));
+      if (token !== loadToken.current) return; // a newer load (other card) owns the form now
       if (p) {
         setParams(p);
         setEdit({
@@ -205,7 +216,7 @@ export function ReceiverPage() {
         });
       }
     } finally {
-      setLoading(false);
+      if (token === loadToken.current) setLoading(false);
     }
   }, [api, connectedId, card, run]);
 
@@ -213,6 +224,9 @@ export function ReceiverPage() {
     setParams(null);
     setEdit(null);
     void load();
+    return () => {
+      loadToken.current++; // invalidate anything still in flight for this card
+    };
   }, [load]);
 
   const target = (): ReceiverTarget | null => {
@@ -220,9 +234,13 @@ export function ReceiverPage() {
     return card ? { scope: 'card', portIndex: card.portIndex, cardIndex: card.cardIndex } : null;
   };
 
-  const applySettings = async () => {
-    const tg = target();
-    if (!connectedId || !tg || !edit) return;
+  const targetText = (tg: ReceiverTarget): string =>
+    tg.scope === 'all'
+      ? t('rcv.confirm.targetAll', { n: cards.length })
+      : t('rcv.confirm.targetCard', { port: tg.portIndex + 1, card: tg.cardIndex + 1 });
+
+  const applySettings = async (tg: ReceiverTarget) => {
+    if (!connectedId || !edit) return;
     setBusy(true);
     try {
       const ok = await run(async () => {
@@ -238,9 +256,8 @@ export function ReceiverPage() {
     }
   };
 
-  const applyProfile = async (profile: ModuleProfile) => {
-    const tg = target();
-    if (!connectedId || !tg) return;
+  const applyProfile = async (tg: ReceiverTarget, profile: ModuleProfile) => {
+    if (!connectedId) return;
     setBusy(true);
     try {
       const ok = await run(async () => {
@@ -320,6 +337,12 @@ export function ReceiverPage() {
     </label>
   );
 
+  const targetBadge = (
+    <span className={allCards ? 'field-error' : 'muted'} data-testid="rcv-target">
+      {t('rcv.target')}: {allCards ? t('rcv.confirm.targetAll', { n: cards.length }) : card ? targetText({ scope: 'card', portIndex: card.portIndex, cardIndex: card.cardIndex }) : '-'}
+    </span>
+  );
+
   const dash = t('rcv.unavailable');
   const opt = (v: number | undefined): string => (v === undefined ? dash : String(v));
 
@@ -353,6 +376,11 @@ export function ReceiverPage() {
           />
           {t('rcv.allCards')}
         </label>
+        {allCards && (
+          <p className="field-error" data-testid="rcv-all-warning">
+            {t('rcv.allCards.warning', { n: cards.length })}
+          </p>
+        )}
       </div>
 
       <div className="card" data-testid="receiver-params">
@@ -443,16 +471,21 @@ export function ReceiverPage() {
           <button
             type="button"
             className="primary"
-            disabled={!advanced || !edit || busy}
-            onClick={() => void applySettings()}
+            disabled={!advanced || !edit || busy || loading}
+            onClick={() => {
+              const tg = target();
+              if (tg) setPending({ kind: 'settings', target: tg });
+            }}
           >
             {t('rcv.apply')}
           </button>
+          {targetBadge}
         </div>
       </div>
 
       <div className="card">
         <h2>{t('rcv.lib.title')}</h2>
+        {library.length > 0 && targetBadge}
         {library.length === 0 ? (
           <p className="muted">{t('rcv.lib.empty')}</p>
         ) : (
@@ -488,7 +521,10 @@ export function ReceiverPage() {
                         className="primary"
                         aria-label={`${t('rcv.lib.apply')} ${p.name}`}
                         disabled={!advanced || disconnected || busy || (!allCards && !card)}
-                        onClick={() => void applyProfile(p)}
+                        onClick={() => {
+                          const tg = target();
+                          if (tg) setPending({ kind: 'profile', target: tg, profile: p });
+                        }}
                       >
                         {t('rcv.lib.apply')}
                       </button>
@@ -596,6 +632,24 @@ export function ReceiverPage() {
           </button>
         </div>
       </div>
+      {pending && (
+        <ConfirmDialog
+          title={t(pending.kind === 'settings' ? 'rcv.confirm.settingsTitle' : 'rcv.confirm.profileTitle')}
+          onCancel={() => setPending(null)}
+          onConfirm={() => {
+            const p = pending;
+            setPending(null);
+            if (p.kind === 'settings') void applySettings(p.target);
+            else void applyProfile(p.target, p.profile);
+          }}
+        >
+          <p data-testid="rcv-confirm-target">
+            {pending.kind === 'settings'
+              ? t('rcv.confirm.settingsBody', { target: targetText(pending.target) })
+              : t('rcv.confirm.profileBody', { name: pending.profile.name, target: targetText(pending.target) })}
+          </p>
+        </ConfirmDialog>
+      )}
     </section>
   );
 }

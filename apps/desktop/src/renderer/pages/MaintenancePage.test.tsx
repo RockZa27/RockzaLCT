@@ -176,6 +176,10 @@ describe('MaintenancePage: versions', () => {
     });
     expect(table).toHaveTextContent('2.3.4');
     expect(table).toHaveTextContent('could not be read');
+    // positions are shown 1-based (the API values above stay 0-based)
+    expect(table).toHaveTextContent('Port 1 / Card 1');
+    expect(table).toHaveTextContent('Port 2 / Card 1');
+    expect(table).not.toHaveTextContent('Port 0');
   });
 });
 

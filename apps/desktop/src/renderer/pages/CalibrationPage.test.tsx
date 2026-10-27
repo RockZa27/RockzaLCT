@@ -547,3 +547,30 @@ describe('CalibrationPage: flash', () => {
     await waitFor(() => expect(api.eraseCoefficientsInFlash).toHaveBeenCalledWith('serial:COM9', 1, 0));
   }, 60_000);
 });
+
+describe('CalibrationPage: review regressions', () => {
+  it('cancels an upload when the page unmounts: no blocks are written afterwards and a toast reports the written ranges', async () => {
+    const writes: number[] = [];
+    const { api, user } = await open({
+      writeCoefficientBlock: vi.fn(async (_i: string, _p: number, _c: number, offset: number) => {
+        await new Promise((r) => setTimeout(r, 20));
+        writes.push(offset);
+      }) as never,
+    });
+    await loginAdvanced(user);
+    await upload(user, fileOf(new Uint8Array(256 * 40).fill(7)));
+    await user.click(screen.getByRole('checkbox', { name: /Back up the card's current coefficients/ }));
+    await user.click(screen.getByRole('button', { name: 'Upload to card…' }));
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Yes, continue' }));
+    await waitFor(() => expect(writes.length).toBeGreaterThan(1));
+
+    await user.click(screen.getByRole('button', { name: 'Brightness' }));
+    await new Promise((r) => setTimeout(r, 100)); // let the single in-flight block settle
+    const atSettle = writes.length;
+    expect(atSettle).toBeLessThan(40);
+    await new Promise((r) => setTimeout(r, 400));
+    expect(writes.length).toBe(atSettle); // nothing more written after the page was left
+    expect(await screen.findByText(/Upload cancelled because you left the Calibration page/)).toHaveTextContent('Byte ranges written');
+    expect(api.writeCoefficientBlock).toHaveBeenCalledTimes(atSettle);
+  }, 30_000);
+});
