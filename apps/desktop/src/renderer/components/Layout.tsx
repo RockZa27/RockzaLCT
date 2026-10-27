@@ -12,6 +12,7 @@ export type PageId =
   | 'test'
   | 'sender'
   | 'receiver'
+  | 'smart'
   | 'layout'
   | 'persist'
   | 'monitor'
@@ -30,6 +31,7 @@ const NAV: { id: PageId; label: MessageKey; family?: 'novastar' | 'hseries' | 't
   { id: 'taurus', label: 'nav.taurus', family: 'taurus' },
   { id: 'sender', label: 'nav.sender', family: 'novastar' },
   { id: 'receiver', label: 'nav.receiver', family: 'novastar' },
+  { id: 'smart', label: 'nav.smart', family: 'novastar' },
   { id: 'layout', label: 'nav.layout', family: 'novastar' },
   { id: 'persist', label: 'nav.persist', family: 'novastar' },
   { id: 'monitor', label: 'nav.monitor', family: 'novastar' },
@@ -41,7 +43,7 @@ const NAV: { id: PageId; label: MessageKey; family?: 'novastar' | 'hseries' | 't
 
 /**
  * Whether a page is offered for the connected controller. Nothing connected: every page. An H
- * series connected: the MCTRL-only pages (sender, receiver, layout, persist, monitor) are hidden
+ * series connected: the MCTRL-only pages (sender, receiver, smart settings, layout, persist, monitor) are hidden
  * and the H series page is shown; a Taurus connected: the same pages are hidden and the Taurus page
  * is shown (Brightness stays, Test & Display stays and explains it is not supported); an MCTRL/VX
  * connected: the H series and Taurus pages are hidden.

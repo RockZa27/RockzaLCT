@@ -12,18 +12,20 @@ Release: https://github.com/RockZa27/RockzaLCT/releases/tag/v0.1.0 (pre-release,
 | H series | H5 | UDP/JSON พอร์ต 6000 (เขียนเองจากโค้ด MIT ของ Companion) |
 | Taurus | TU15/20 Pro, TB40/50/60 | TCP 16606 ผ่าน `@novastar/taurus` (ถามรหัสผ่านทุกครั้ง ไม่เก็บ) |
 
-หน้าโปรแกรม: การเชื่อมต่อ · ความสว่าง · ทดสอบ/จอดำ/หยุดภาพ · การ์ดส่ง · การ์ดรับ + โปรไฟล์โมดูล · ผังการเชื่อมต่อจอ · บันทึก/โหลด · ตรวจสอบสถานะ · Calibration · การ์ดมัลติฟังก์ชัน/เฟิร์มแวร์ · H series · Taurus · ตั้งค่าฮาร์ดแวร์ขั้นสูง (ไทย/อังกฤษ)
+หน้าโปรแกรม: การเชื่อมต่อ · ความสว่าง · ทดสอบ/จอดำ/หยุดภาพ · การ์ดส่ง · การ์ดรับ + โปรไฟล์โมดูล · ตั้งค่าอัจฉริยะ (Smart Settings: สแนปช็อต → ค่าพื้นฐานโมดูล → ลำดับสี RGB → ขั้ว OE → เก็บ/คืน/บันทึกแฟลช) · ผังการเชื่อมต่อจอ · บันทึก/โหลด · ตรวจสอบสถานะ · Calibration · การ์ดมัลติฟังก์ชัน/เฟิร์มแวร์ · H series · Taurus · ตั้งค่าฮาร์ดแวร์ขั้นสูง (ไทย/อังกฤษ)
 
 ## สิ่งที่ตั้งใจไม่ทำ
 
 - **เขียน firmware ลงการ์ด** — ไลบรารีไม่มีขั้นตอนครบ (ไม่มี erase/readback/รูปแบบไฟล์) ทำได้แค่ตรวจไฟล์และวางแผนแบบไม่ส่งจริง
-- Smart Settings wizard, seam/bright-dark line fix, ปรับคาลิเบรตเฉพาะพื้นที่, นำเข้าไฟล์ .rcfgx/.scr ของ NovaLCT
+- **ตารางพิกเซล/จุดของ Smart Settings** (`SetModuleScanSequenceInfo`, `SetTotalPointInTable`, `SetModuleConfigInfo`, `SetScanner_*Ram*`, `SetGenLinearScanBoardRunLineTable`) — ไบต์ของตารางสร้างจากอัลกอริทึมของ NovaLCT ซึ่งไม่อยู่ในไลบรารี โมดูลซับซ้อน/ไม่สม่ำเสมอจึงยังต้องใช้ไฟล์ตั้งค่าโมดูลจาก NovaLCT (หน้า Smart Settings แจ้งข้อความนี้ทั้งไทย/อังกฤษ)
+- seam/bright-dark line fix, ปรับคาลิเบรตเฉพาะพื้นที่, นำเข้าไฟล์ .rcfgx/.scr ของ NovaLCT
 
 ## ยังไม่ได้ยืนยันกับเครื่องจริง (แก้ได้จากหน้าตั้งค่าฮาร์ดแวร์ขั้นสูง)
 
 - byte จอดำ/หยุดภาพ (`DISPLAY_MODE_VALUES`), คำสั่งบันทึกลง flash (`SAVE_COMMAND_VALUES`)
 - ลำดับ X/Y ของตำแหน่งการ์ดรับในผังจอ (ไลบรารีขัดกันเอง — ลองกับจอเล็กก่อน)
 - ค่าลบ flash คาลิเบรต และบิตสวิตช์คาลิเบรต (อย่าเปลี่ยนเองก่อนคุยกัน)
+- Smart Settings: ผลของทิศทางข้อมูล (0/1), ขั้ว OE (0/1) ต่อภาพจริง และความหมายของฟิลด์รหัส RGB (มีปุ่มลองแบบกลับด้านเผื่อไว้) — ดูหัวข้อ 18 ของคู่มือทดสอบ
 - หน่วยของ refresh/gamma/grayscale/อุณหภูมิ/แรงดัน (แสดงเป็นค่าดิบ), ชื่อรุ่นการ์ด (ขึ้น "Unknown (0x....)")
 - Taurus ผ่านพอร์ต 5200 ใช้หน้าของ MCTRL ได้แค่ไหน (คู่มือข้อ 16.8)
 
@@ -35,7 +37,7 @@ Release: https://github.com/RockZa27/RockzaLCT/releases/tag/v0.1.0 (pre-release,
 
 ## คุณภาพและการตรวจสอบ
 
-- เทส 687 ตัว (simulator 19, device 384, desktop 284) + typecheck + build ใน CI ทุก push
+- เทส 758 ตัว (simulator 19, device 423, desktop 316) + typecheck + build ใน CI ทุก push
 - Smoke test เปิดโปรแกรมที่ package แล้วจริง ทั้ง Linux (CI) และ Windows (ก่อนออก release) — ยืนยัน `SMOKE OK discovered=3`
 - ตรวจโค้ดทั้งโปรเจกต์ 1 รอบ: พบ 20 บั๊ก ยืนยันจริงทุกข้อ แก้ครบพร้อมเทสที่ล้มก่อนแก้
 - คะแนน agent ทุกตัวอยู่ใน `docs/agent-scorecard.md` (Sonnet 22 ตัว ทิ้ง 1 ตัว ส่งกลับแก้ 3 ตัว)

@@ -14,6 +14,7 @@ import { MaintenancePage } from './pages/MaintenancePage';
 import { PersistPage } from './pages/PersistPage';
 import { ReceiverPage } from './pages/ReceiverPage';
 import { SenderPage } from './pages/SenderPage';
+import { SmartSettingsPage } from './pages/SmartSettingsPage';
 import { TaurusPage } from './pages/TaurusPage';
 import { TestDisplayPage } from './pages/TestDisplayPage';
 import { AppProvider, useApp } from './state/AppContext';
@@ -43,6 +44,7 @@ function Shell() {
       {page === 'taurus' && <TaurusPage />}
       {page === 'sender' && <SenderPage />}
       {page === 'receiver' && <ReceiverPage />}
+      {page === 'smart' && <SmartSettingsPage />}
       {page === 'layout' && <LayoutPage />}
       {page === 'persist' && <PersistPage />}
       {page === 'monitor' && <MonitorPage />}

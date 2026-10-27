@@ -15,7 +15,8 @@ import { createMockCalibration } from './mock/calibration';
 import { createMockMaintenance } from './mock/maintenance';
 import { createMockOverrides } from './mock/overrides';
 import { createMockPersist } from './mock/persist';
-import { createMockReceiver } from './mock/receiver';
+import { createMockReceiver, type MockCardStore } from './mock/receiver';
+import { createMockSmartSettings } from './mock/smartSettings';
 import { createMockSender } from './mock/sender';
 import { MOCK_TAURUS_INFO, MOCK_TAURUS_PASSWORD, createMockTaurus } from './mock/taurus';
 
@@ -200,12 +201,14 @@ export function createMockDevice(options: MockDeviceOptions = {}): DeviceApi {
   };
 
   const sender = createMockSender(ctx);
-  const receiver = createMockReceiver(ctx);
+  const cardStore: MockCardStore = new Map();
+  const receiver = createMockReceiver(ctx, cardStore);
   const layout = createMockLayout(ctx);
 
   return {
     ...sender,
     ...receiver,
+    ...createMockSmartSettings(ctx, cardStore),
     ...layout,
     ...createMockPersist(ctx, { sender, receiver, layout }),
     ...createMockMonitor(ctx),
