@@ -21,6 +21,8 @@ import type { SessionFactory, SessionLike } from './session.js';
 import type { FeatureContext } from './features/context.js';
 import { createLayoutFeature } from './features/layout.js';
 import { createMonitorFeature } from './features/monitor.js';
+import { createCalibrationFeature } from './features/calibration.js';
+import { createMaintenanceFeature } from './features/maintenance.js';
 import { createPersistFeature } from './features/persist.js';
 import { createReceiverFeature } from './features/receiver.js';
 import { createSenderFeature } from './features/sender.js';
@@ -573,6 +575,8 @@ export function createDeviceService(options: DeviceServiceOptions = {}): DeviceS
     ...mctrlOnly(createLayoutFeature(ctx)),
     ...mctrlOnly(createPersistFeature(ctx)),
     ...mctrlOnly(createMonitorFeature(ctx)),
+    ...mctrlOnly(createCalibrationFeature(ctx)),
+    ...mctrlOnly(createMaintenanceFeature(ctx)),
     listScreens: hOnly((id) => hseries.listScreens(id)),
     listPresets: hOnly((id, screenId?: number) => hseries.listPresets(id, screenId)),
     playPreset: hOnly((id, screenId: number, presetId: number) => hseries.playPreset(id, screenId, presetId)),

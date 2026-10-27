@@ -71,6 +71,8 @@ import type { PersistApi } from './features/persist.js';
 import type { MonitorApi } from './features/monitor.js';
 import type { HSeriesApi } from './features/hseries.js';
 import type { TaurusApi } from './features/taurus.js';
+import type { CalibrationApi } from './features/calibration.js';
+import type { MaintenanceApi } from './features/maintenance.js';
 
 export * from './features/sender.js';
 export * from './features/receiver.js';
@@ -79,9 +81,11 @@ export * from './features/persist.js';
 export * from './features/monitor.js';
 export * from './features/hseries.js';
 export * from './features/taurus.js';
+export * from './features/calibration.js';
+export * from './features/maintenance.js';
 
 /** Operations exposed to the renderer over IPC. All methods may reject with DeviceError. */
-export interface DeviceApi extends SenderApi, ReceiverApi, LayoutApi, PersistApi, MonitorApi, HSeriesApi, TaurusApi {
+export interface DeviceApi extends SenderApi, ReceiverApi, LayoutApi, PersistApi, MonitorApi, HSeriesApi, TaurusApi, CalibrationApi, MaintenanceApi {
   discover(options?: { netHosts?: string[]; timeoutMs?: number }): Promise<DiscoveredController[]>;
   connect(id: string): Promise<ControllerInfo>;
   disconnect(id: string): Promise<void>;

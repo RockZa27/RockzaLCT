@@ -83,6 +83,8 @@ describe('navigation per controller family', () => {
       'Screen connection',
       'Save & load',
       'Monitoring',
+      'Calibration',
+      'Function card & firmware',
     ]);
   });
 

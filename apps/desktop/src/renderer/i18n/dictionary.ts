@@ -1,6 +1,8 @@
 import { hseriesEn, hseriesTh } from './hseries';
 import { layoutEn, layoutTh } from './layout';
 import { monitorEn, monitorTh } from './monitor';
+import { calibrationEn, calibrationTh } from './calibration';
+import { maintenanceEn, maintenanceTh } from './maintenance';
 import { persistEn, persistTh } from './persist';
 import { receiverEn, receiverTh } from './receiver';
 import { senderEn, senderTh } from './sender';
@@ -16,6 +18,8 @@ const en = {
   ...layoutEn,
   ...persistEn,
   ...monitorEn,
+  ...calibrationEn,
+  ...maintenanceEn,
   'app.name': 'RockzaLCT',
   'nav.connection': 'Connection',
   'nav.brightness': 'Brightness',
@@ -105,6 +109,8 @@ const th: Record<MessageKey, string> = {
   ...layoutTh,
   ...persistTh,
   ...monitorTh,
+  ...calibrationTh,
+  ...maintenanceTh,
   'app.name': 'RockzaLCT',
   'nav.connection': 'การเชื่อมต่อ',
   'nav.brightness': 'ความสว่าง',

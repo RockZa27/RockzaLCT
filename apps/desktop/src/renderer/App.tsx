@@ -8,6 +8,8 @@ import { ConnectionPage } from './pages/ConnectionPage';
 import { HSeriesPage } from './pages/HSeriesPage';
 import { LayoutPage } from './pages/LayoutPage';
 import { MonitorPage } from './pages/MonitorPage';
+import { CalibrationPage } from './pages/CalibrationPage';
+import { MaintenancePage } from './pages/MaintenancePage';
 import { PersistPage } from './pages/PersistPage';
 import { ReceiverPage } from './pages/ReceiverPage';
 import { SenderPage } from './pages/SenderPage';
@@ -43,6 +45,8 @@ function Shell() {
       {page === 'layout' && <LayoutPage />}
       {page === 'persist' && <PersistPage />}
       {page === 'monitor' && <MonitorPage />}
+      {page === 'calibration' && <CalibrationPage />}
+      {page === 'maintenance' && <MaintenancePage />}
     </Layout>
   );
 }

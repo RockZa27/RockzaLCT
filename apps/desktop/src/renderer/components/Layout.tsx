@@ -15,6 +15,8 @@ export type PageId =
   | 'layout'
   | 'persist'
   | 'monitor'
+  | 'calibration'
+  | 'maintenance'
   | 'hseries'
   | 'taurus';
 
@@ -30,6 +32,8 @@ const NAV: { id: PageId; label: MessageKey; family?: 'novastar' | 'hseries' | 't
   { id: 'layout', label: 'nav.layout', family: 'novastar' },
   { id: 'persist', label: 'nav.persist', family: 'novastar' },
   { id: 'monitor', label: 'nav.monitor', family: 'novastar' },
+  { id: 'calibration', label: 'nav.calibration', family: 'novastar' },
+  { id: 'maintenance', label: 'nav.maintenance', family: 'novastar' },
 ];
 
 /**
