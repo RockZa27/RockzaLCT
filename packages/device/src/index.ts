@@ -9,3 +9,8 @@ export {
 } from './factories.js';
 export type { NetFactoryOptions, SerialFactoryOptions } from './factories.js';
 export type { OpenOptions, SessionFactory, SessionLike } from './session.js';
+export { createHSeriesBackend, hseriesController, HSERIES_PATTERN_IDS } from './hseries/backend.js';
+export type { HSeriesBackend, HSeriesBackendOptions } from './hseries/backend.js';
+export { HSeriesClient, MAX_RETRIES } from './hseries/client.js';
+export type { HSeriesClientOptions, RequestOptions } from './hseries/client.js';
+export { CMD as HSERIES_CMD, DEFAULT_HSERIES_PORT, decodeReply, encodeRequest } from './hseries/protocol.js';

@@ -1,11 +1,11 @@
 // Contract between the device layer (packages/device, runs in Electron main)
 // and the UI (apps/desktop renderer). Keep this file free of runtime deps.
 
-export type TransportKind = 'serial' | 'net';
+export type TransportKind = 'serial' | 'net' | 'hseries';
 
 /** A controller found during discovery but not yet connected. */
 export interface DiscoveredController {
-  /** Stable id: `serial:<path>` or `net:<host>:<port>`. */
+  /** Stable id: `serial:<path>`, `net:<host>:<port>` or `hseries:<host>:<port>` (UDP). */
   id: string;
   transport: TransportKind;
   /** COM path (serial) or host (net). */
@@ -24,8 +24,13 @@ export interface ReceivingCardInfo {
   firmwareVersion: string;
 }
 
+/** Controller family: NovaStar MCTRL/VX sending cards (binary protocol) or H series splicers (UDP/JSON). */
+export type ControllerFamily = 'novastar' | 'hseries';
+
 export interface ControllerInfo {
   id: string;
+  /** Missing means 'novastar'. */
+  family?: ControllerFamily;
   model: string;
   firmwareVersion: string;
   /** Number of Ethernet output ports on the sending card. */
@@ -64,15 +69,17 @@ import type { ReceiverApi } from './features/receiver.js';
 import type { LayoutApi } from './features/layout.js';
 import type { PersistApi } from './features/persist.js';
 import type { MonitorApi } from './features/monitor.js';
+import type { HSeriesApi } from './features/hseries.js';
 
 export * from './features/sender.js';
 export * from './features/receiver.js';
 export * from './features/layout.js';
 export * from './features/persist.js';
 export * from './features/monitor.js';
+export * from './features/hseries.js';
 
 /** Operations exposed to the renderer over IPC. All methods may reject with DeviceError. */
-export interface DeviceApi extends SenderApi, ReceiverApi, LayoutApi, PersistApi, MonitorApi {
+export interface DeviceApi extends SenderApi, ReceiverApi, LayoutApi, PersistApi, MonitorApi, HSeriesApi {
   discover(options?: { netHosts?: string[]; timeoutMs?: number }): Promise<DiscoveredController[]>;
   connect(id: string): Promise<ControllerInfo>;
   disconnect(id: string): Promise<void>;

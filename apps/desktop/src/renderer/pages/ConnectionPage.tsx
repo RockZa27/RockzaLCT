@@ -51,7 +51,15 @@ export function ConnectionPage() {
               {discovered.map((c) => (
                 <tr key={c.id}>
                   <td>{c.label}</td>
-                  <td>{t(c.transport === 'serial' ? 'conn.transport.serial' : 'conn.transport.net')}</td>
+                  <td>
+                    {t(
+                      c.transport === 'serial'
+                        ? 'conn.transport.serial'
+                        : c.transport === 'hseries'
+                          ? 'conn.transport.hseries'
+                          : 'conn.transport.net',
+                    )}
+                  </td>
                   <td>
                     {connectedId === c.id ? (
                       <button type="button" onClick={() => void disconnect()}>

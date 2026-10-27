@@ -17,13 +17,20 @@ export const DISPLAY_MODES: readonly DisplayMode[] = ['normal', 'blackout', 'fre
 
 export function TestDisplayPage() {
   const { t } = useI18n();
-  const { connectedId, pattern, mode, setPattern, setMode } = useApp();
+  const { connectedId, info, level, pattern, mode, setPattern, setMode } = useApp();
+  const hseries = info?.family === 'hseries';
   const disabled = connectedId === null;
 
   return (
     <section>
       <h1>{t('test.title')}</h1>
       {disabled && <p className="muted">{t('test.needConnect')}</p>}
+      {hseries && <p className="muted">{t('test.hseriesNote')}</p>}
+      {hseries && level !== 'advanced' && (
+        <p className="muted" data-testid="advanced-note">
+          {t('hs.advancedOnly')}
+        </p>
+      )}
 
       <div className="card">
         <h2>{t('test.patterns')}</h2>

@@ -1,4 +1,12 @@
-import { LAYOUT_METHODS, MONITOR_METHODS, PERSIST_METHODS, RECEIVER_METHODS, SENDER_METHODS, type DeviceApi } from '@rockzalct/shared';
+import {
+  HSERIES_METHODS,
+  LAYOUT_METHODS,
+  MONITOR_METHODS,
+  PERSIST_METHODS,
+  RECEIVER_METHODS,
+  SENDER_METHODS,
+  type DeviceApi,
+} from '@rockzalct/shared';
 
 /** Every DeviceApi method; typed so a missing/extra name is a compile error. */
 const table: { [K in keyof DeviceApi]: true } = {
@@ -15,6 +23,7 @@ const table: { [K in keyof DeviceApi]: true } = {
   ...LAYOUT_METHODS,
   ...PERSIST_METHODS,
   ...MONITOR_METHODS,
+  ...HSERIES_METHODS,
 };
 
 export const DEVICE_METHODS = Object.keys(table) as (keyof DeviceApi)[];

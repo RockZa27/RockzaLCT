@@ -23,6 +23,8 @@ import { createMonitorFeature } from './features/monitor.js';
 import { createPersistFeature } from './features/persist.js';
 import { createReceiverFeature } from './features/receiver.js';
 import { createSenderFeature } from './features/sender.js';
+import { createHSeriesBackend, type HSeriesBackend } from './hseries/backend.js';
+import { DEFAULT_HSERIES_PORT } from './hseries/protocol.js';
 
 /** Sending-card address on the bus; the only (first) sender is addressed as 0. */
 const SENDER = 0;
@@ -85,6 +87,16 @@ export interface DeviceServiceOptions {
   udpDiscovery?: boolean;
   /** Enumerate USB/COM sending cards in discover(); default true. */
   serialDiscovery?: boolean;
+  /** Also probe every net host for an H series (UDP/JSON) controller in discover(); default true. */
+  hseriesDiscovery?: boolean;
+  /** UDP port of H series controllers, default 6000. */
+  hseriesPort?: number;
+  /** Extra UDP attempts after a silent one for H series requests, default 2. */
+  hseriesRetries?: number;
+  /** Time connect() waits for an H series to finish initialising (R0118 rate 100), default 10000 ms. */
+  hseriesHandshakeTimeoutMs?: number;
+  /** Pause between R0118 polls while an H series is still initialising, default 500 ms. */
+  hseriesHandshakePollMs?: number;
   /** Injection points for tests. */
   findSerialPaths?: () => Promise<string[]>;
   findUdpHosts?: () => Promise<string[]>;
@@ -159,6 +171,18 @@ export function createDeviceService(options: DeviceServiceOptions = {}): DeviceS
   const registry = new Map<string, Entry>();
   let userLevel: UserLevel = { level: 'normal' };
   let discoveryErrors: Array<{ target: string; message: string }> = [];
+
+  // H series (UDP/JSON) controllers live in their own back end. Ids starting with `hseries:` are
+  // routed to it; everything below that is MCTRL/VX-only never sees them.
+  const hseriesPort = options.hseriesPort ?? DEFAULT_HSERIES_PORT;
+  const hseries: HSeriesBackend = createHSeriesBackend({
+    timeoutMs,
+    retries: options.hseriesRetries,
+    port: hseriesPort,
+    handshakeTimeoutMs: options.hseriesHandshakeTimeoutMs,
+    handshakePollMs: options.hseriesHandshakePollMs,
+    isAdvanced: () => userLevel.level === 'advanced',
+  });
 
   const guard = async <T>(fn: () => Promise<T>): Promise<T> => {
     try {
@@ -269,6 +293,7 @@ export function createDeviceService(options: DeviceServiceOptions = {}): DeviceS
     }
 
     const hosts = new Map<string, DiscoveredController>();
+    const hTargets = new Map<string, { host: string; port: number }>();
     for (const entry of opts.netHosts ?? options.netHosts ?? []) {
       const parsed = typeof entry === 'string' ? parseNetHost(entry, netPort) : null;
       if (!parsed) {
@@ -277,6 +302,10 @@ export function createDeviceService(options: DeviceServiceOptions = {}): DeviceS
       }
       const c = netController(parsed.host, parsed.port);
       hosts.set(c.id, c);
+      // The same host is also probed for an H series. An explicit port other than the TCP default
+      // is taken as the H series UDP port.
+      const udpPort = parsed.port !== netPort ? parsed.port : hseriesPort;
+      hTargets.set(`${parsed.host}:${udpPort}`, { host: parsed.host, port: udpPort });
     }
     if (options.udpDiscovery) {
       try {
@@ -293,12 +322,25 @@ export function createDeviceService(options: DeviceServiceOptions = {}): DeviceS
       }
     }
 
-    const results = await Promise.all(
-      [...hosts.values()].map(async (c) => ((await probe(c, probeTimeout)) ? c : null)),
-    );
+    // TCP (MCTRL/VX) and UDP (H series) probes run side by side; a failure of either, for any host,
+    // is only recorded and never fails the scan.
+    const hProbes = options.hseriesDiscovery === false ? [] : [...hTargets.values()];
+    const [results, hResults] = await Promise.all([
+      Promise.all([...hosts.values()].map(async (c) => ((await probe(c, probeTimeout)) ? c : null))),
+      Promise.all(
+        hProbes.map(async (t) => {
+          try {
+            return hseries.remember(await hseries.probe(t.host, t.port, probeTimeout));
+          } catch (err) {
+            record(`hseries:${t.host}:${t.port}`, err);
+            return null;
+          }
+        }),
+      ),
+    ]);
     for (const c of results) if (c) found.set(c.id, c);
-
-    return [...found.values()].map(remember);
+    const mctrl = [...found.values()].map(remember);
+    return [...mctrl, ...hResults.filter((c): c is DiscoveredController => c !== null)];
   }
 
   async function readInfo(id: string, session: SessionLike): Promise<{ info: ControllerInfo; firmware: FirmwareDetails }> {
@@ -438,19 +480,60 @@ export function createDeviceService(options: DeviceServiceOptions = {}): DeviceS
 
   const ctx: FeatureContext = { withSession, userLevel: () => ({ ...userLevel }), timeoutMs };
 
+  /** Routes a core method to the H series back end when `id` is an `hseries:` id. */
+  const routed = <A extends unknown[], R>(
+    mctrl: (id: string, ...args: A) => Promise<R>,
+    h: (id: string, ...args: A) => Promise<R>,
+  ) => (id: string, ...args: A): Promise<R> => (hseries.owns(id) ? h(id, ...args) : mctrl(id, ...args));
+
+  /**
+   * MCTRL/VX-only feature methods (sender, receiver, layout, persist, monitor) called with an H
+   * series id reject with INVALID_ARGUMENT instead of failing with NOT_FOUND. Every one of them
+   * takes the controller id as its first argument.
+   */
+  const mctrlOnly = <T extends object>(feature: T): T => {
+    const out: Record<string, unknown> = {};
+    for (const [name, fn] of Object.entries(feature)) {
+      out[name] =
+        typeof fn === 'function'
+          ? (id: string, ...args: unknown[]): Promise<unknown> =>
+              hseries.owns(id)
+                ? Promise.reject(new DeviceError('INVALID_ARGUMENT', 'not supported on H series'))
+                : (fn as (...a: unknown[]) => Promise<unknown>)(id, ...args)
+          : fn;
+    }
+    return out as T;
+  };
+  /** The HSeriesApi methods with a non-H id: only `hseries:` ids make sense. */
+  const hOnly = <A extends unknown[], R>(h: (id: string, ...args: A) => Promise<R>) =>
+    (id: string, ...args: A): Promise<R> =>
+      hseries.owns(id)
+        ? h(id, ...args)
+        : Promise.reject(new DeviceError('INVALID_ARGUMENT', 'only supported on H series controllers'));
+
   return {
-    ...createSenderFeature(ctx),
-    ...createReceiverFeature(ctx),
-    ...createLayoutFeature(ctx),
-    ...createPersistFeature(ctx),
-    ...createMonitorFeature(ctx),
+    ...mctrlOnly(createSenderFeature(ctx)),
+    ...mctrlOnly(createReceiverFeature(ctx)),
+    ...mctrlOnly(createLayoutFeature(ctx)),
+    ...mctrlOnly(createPersistFeature(ctx)),
+    ...mctrlOnly(createMonitorFeature(ctx)),
+    listScreens: hOnly((id) => hseries.listScreens(id)),
+    listPresets: hOnly((id, screenId?: number) => hseries.listPresets(id, screenId)),
+    playPreset: hOnly((id, screenId: number, presetId: number) => hseries.playPreset(id, screenId, presetId)),
+    listLayers: hOnly((id, screenId?: number) => hseries.listLayers(id, screenId)),
+    listInputs: hOnly((id) => hseries.listInputs(id)),
+    setLayerInput: hOnly((id, screenId: number, layerId: number, inputId: number, cropId?: number) =>
+      hseries.setLayerInput(id, screenId, layerId, inputId, cropId),
+    ),
+    fadeToBlack: hOnly((id, screenId: number, enabled: boolean) => hseries.fadeToBlack(id, screenId, enabled)),
+    saveScreenBrightness: hOnly((id, screenId: number) => hseries.saveScreenBrightness(id, screenId)),
     discover,
-    connect,
-    disconnect,
-    getBrightness,
-    setBrightness,
-    setTestPattern,
-    setDisplayMode,
+    connect: routed(connect, (id) => hseries.connect(id)),
+    disconnect: routed(disconnect, (id) => hseries.disconnect(id)),
+    getBrightness: routed(getBrightness, (id) => hseries.getBrightness(id)),
+    setBrightness: routed(setBrightness, (id, value) => hseries.setBrightness(id, value)),
+    setTestPattern: routed(setTestPattern, (id, pattern) => hseries.setTestPattern(id, pattern)),
+    setDisplayMode: routed(setDisplayMode, (id, mode) => hseries.setDisplayMode(id, mode)),
     login,
     getUserLevel: () => ({ ...userLevel }),
     getFirmwareDetails(id: string): FirmwareDetails {
@@ -463,6 +546,7 @@ export function createDeviceService(options: DeviceServiceOptions = {}): DeviceS
     },
     async dispose(): Promise<void> {
       await Promise.all([...registry.values()].map(closeSession));
+      await hseries.dispose();
     },
   };
 }

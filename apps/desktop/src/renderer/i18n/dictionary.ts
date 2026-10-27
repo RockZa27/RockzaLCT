@@ -1,3 +1,4 @@
+import { hseriesEn, hseriesTh } from './hseries';
 import { layoutEn, layoutTh } from './layout';
 import { monitorEn, monitorTh } from './monitor';
 import { persistEn, persistTh } from './persist';
@@ -8,6 +9,7 @@ export type Lang = 'th' | 'en';
 
 const en = {
   ...senderEn,
+  ...hseriesEn,
   ...receiverEn,
   ...layoutEn,
   ...persistEn,
@@ -95,6 +97,7 @@ export type MessageKey = keyof typeof en;
 
 const th: Record<MessageKey, string> = {
   ...senderTh,
+  ...hseriesTh,
   ...receiverTh,
   ...layoutTh,
   ...persistTh,

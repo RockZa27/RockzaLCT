@@ -39,8 +39,8 @@ pnpm --filter @rockzalct/simulator start                     # การ์ด�
 | แพ็กเกจ | หน้าที่ |
 |---|---|
 | `packages/shared` | สัญญา `DeviceApi` ระหว่าง UI กับฮาร์ดแวร์ |
-| `packages/device` | สื่อสารกับการ์ดผ่าน `@novastar/*` |
-| `packages/simulator` | การ์ดจำลองที่พูดโปรโตคอล NovaStar จริงผ่าน TCP |
+| `packages/device` | สื่อสารกับการ์ดผ่าน `@novastar/*` และกับ H series (H5 ฯลฯ) ผ่าน UDP/JSON พอร์ต 6000 (`src/hseries/`) |
+| `packages/simulator` | การ์ดจำลองที่พูดโปรโตคอล NovaStar จริงผ่าน TCP และ H series จำลองผ่าน UDP (`startHSeriesSimulator`) |
 | `apps/desktop` | โปรแกรม Electron + React (ไทย/อังกฤษ) |
 
 > ค่า byte ของจอดำ / หยุดภาพ (`DISPLAY_MODE_VALUES`) และคำสั่งบันทึกลงแฟลช (`SAVE_COMMAND_VALUES`) ใน `packages/device` ยังไม่ได้ยืนยันกับเครื่องจริง

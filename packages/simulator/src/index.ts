@@ -4,3 +4,7 @@ export { ADDR, cardCountAddress, createState, handleRequest } from './state.js';
 export type { SimulatorOptions, SimulatorState, ReceivingCardState } from './state.js';
 export { DeviceMemory } from './memory.js';
 export { RequestParser, buildResponse, computeCrc } from './protocol.js';
+export { startHSeriesSimulator, DEFAULT_HSERIES_PORT } from './hseries/server.js';
+export type { HSeriesSimulatorHandle } from './hseries/server.js';
+export { createHSeriesState, handleHSeriesCommand } from './hseries/state.js';
+export type { HSeriesSimulatorOptions, HSeriesSimulatorState, SimScreen, SimLayer, SimPreset, SimInput, SimOutput, SimSlot } from './hseries/state.js';

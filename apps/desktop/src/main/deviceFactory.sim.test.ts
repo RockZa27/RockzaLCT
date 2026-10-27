@@ -1,0 +1,24 @@
+// @vitest-environment node
+import { describe, expect, it } from 'vitest';
+import { getDeviceApi } from './deviceFactory';
+
+describe('sim back end', () => {
+  it('starts both simulators, so both controller families are discoverable and usable', async () => {
+    const api = getDeviceApi('sim');
+    const found = await api.discover();
+    expect(found.map((c) => c.transport).sort()).toEqual(['hseries', 'net']);
+
+    const h = found.find((c) => c.transport === 'hseries')!;
+    const info = await api.connect(h.id);
+    expect(info.family).toBe('hseries');
+    expect((await api.listScreens(h.id)).length).toBeGreaterThan(0);
+
+    const n = found.find((c) => c.transport === 'net')!;
+    const mctrl = await api.connect(n.id);
+    expect(mctrl.family).toBeUndefined();
+    expect(mctrl.receivingCards.length).toBeGreaterThan(0);
+
+    await api.disconnect(h.id);
+    await api.disconnect(n.id);
+  });
+});
