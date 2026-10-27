@@ -316,3 +316,54 @@ th {
   background: transparent;
   border: 0;
 }
+
+/* Advanced hardware settings page */
+.adv-row {
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+}
+.adv-row:first-of-type {
+  border-top: 0;
+  padding-top: 0;
+}
+.adv-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.adv-desc {
+  margin: 4px 0 0;
+}
+.adv-values {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 24px;
+  margin-top: 8px;
+}
+.adv-edit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+}
+.adv-edit input {
+  width: 90px;
+}
+.tag-unverified {
+  background: var(--err);
+  color: #fff;
+  border-radius: 4px;
+  padding: 0 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.tag-modified {
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  border-radius: 4px;
+  padding: 0 8px;
+  font-size: 0.75rem;
+}

@@ -13,6 +13,7 @@ import { createMockLayout } from './mock/layout';
 import { createMockMonitor } from './mock/monitor';
 import { createMockCalibration } from './mock/calibration';
 import { createMockMaintenance } from './mock/maintenance';
+import { createMockOverrides } from './mock/overrides';
 import { createMockPersist } from './mock/persist';
 import { createMockReceiver } from './mock/receiver';
 import { createMockSender } from './mock/sender';
@@ -210,6 +211,7 @@ export function createMockDevice(options: MockDeviceOptions = {}): DeviceApi {
     ...createMockMonitor(ctx),
     ...createMockCalibration(ctx),
     ...createMockMaintenance(ctx),
+    ...createMockOverrides(ctx),
     ...hs.api,
     ...ts.api,
     async discover(opts) {

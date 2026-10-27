@@ -11,7 +11,7 @@ import '@novastar/native/api/SetParameterStore2SpiFlash';
 import { createReceiverFeature } from './receiver.js';
 import { createSenderFeature } from './sender.js';
 import { createLayoutFeature } from './layout.js';
-import type { FeatureContext } from './context.js';
+import { currentOverrides, type FeatureContext } from './context.js';
 import type { SessionLike } from '../session.js';
 
 /**
@@ -24,7 +24,8 @@ import type { SessionLike } from '../session.js';
  * it is also what DISPLAY_MODE_VALUES uses for the other 1-byte action registers in this repo, and
  * the readable counterpart ReadSaveSendCardsParameters (Session.cjs, same address) suggests the
  * register holds a flag. If a card ignores 1, override per call (SaveToHardwareOptions) or for the
- * whole service (second argument of createPersistFeature).
+ * whole service (second argument of createPersistFeature) or, at run time, via the advanced hardware
+ * settings (HardwareOverrides.saveSender / saveReceiver, read at call time from ctx).
  */
 export const SAVE_COMMAND_VALUES = {
   /** Written to the sender's SaveSendCardsParameters register. */
@@ -53,7 +54,11 @@ function formatEdition(edition: number): string {
 const modelName = (modelId: number): string => `Unknown (0x${(modelId >>> 0).toString(16).toUpperCase().padStart(4, '0')})`;
 
 export function createPersistFeature(ctx: FeatureContext, saveValues: Partial<SaveCommandValues> = {}): PersistApi {
-  const values: SaveCommandValues = { ...SAVE_COMMAND_VALUES, ...saveValues };
+  // Precedence per call: explicit argument of the call > `saveValues` given to this factory > the
+  // advanced hardware settings in effect now (ctx) > SAVE_COMMAND_VALUES. The ctx value is read inside
+  // each command, not here, so a settings change applies to the next save.
+  const senderValue = (): number => saveValues.sender ?? currentOverrides(ctx).saveSender;
+  const receiverValue = (): number => saveValues.receiver ?? currentOverrides(ctx).saveReceiver;
   return createPersistApi({
     sender: createSenderFeature(ctx),
     receiver: createReceiverFeature(ctx),
@@ -66,8 +71,8 @@ export function createPersistFeature(ctx: FeatureContext, saveValues: Partial<Sa
         return { model: modelName(modelId), firmwareVersion: formatEdition(await s.ReadSender_McuProgramEdition(SENDER)) };
       }),
     saveSender: (id, value) =>
-      ctx.withSession(id, (s) => asPersist(s).SetSaveSendCardsParameters(SENDER, false, value ?? values.sender)),
+      ctx.withSession(id, (s) => asPersist(s).SetSaveSendCardsParameters(SENDER, false, value ?? senderValue())),
     saveCard: (id, portIndex, cardIndex, value) =>
-      ctx.withSession(id, (s) => asPersist(s).SetParameterStore2SpiFlash(SENDER, portIndex, cardIndex, false, value ?? values.receiver)),
+      ctx.withSession(id, (s) => asPersist(s).SetParameterStore2SpiFlash(SENDER, portIndex, cardIndex, false, value ?? receiverValue())),
   });
 }

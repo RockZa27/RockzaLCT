@@ -183,7 +183,7 @@ describe('navigation with a Taurus connected', () => {
     const { user } = renderApp(tApi());
     await connectTaurus(user);
     await screen.findByTestId('controller-info');
-    expect(navNames()).toEqual(['Connection', 'Brightness', 'Test & Display', 'Taurus']);
+    expect(navNames()).toEqual(['Connection', 'Brightness', 'Test & Display', 'Taurus', 'Advanced hardware settings']);
   });
 
   it('an MCTRL/VX hides the Taurus page', async () => {

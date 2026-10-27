@@ -3,14 +3,18 @@ import { findNetDevices } from '@novastar/net';
 import { findSendingCards } from '@novastar/serial';
 import { TestModeEnum } from '@novastar/native/TestMode';
 import {
+  DEFAULT_HARDWARE_OVERRIDES,
   DeviceError,
+  mergeHardwareOverrides,
   percentToRaw,
+  resolveHardwareOverrides,
   rawToPercent,
   type BrightnessState,
   type ControllerInfo,
   type DeviceApi,
   type DiscoveredController,
   type DisplayMode,
+  type HardwareOverrides,
   type ReceivingCardInfo,
   type TaurusCredentials,
   type TestPattern,
@@ -76,8 +80,16 @@ export const DISPLAY_MODE_VALUES = {
 export type DisplayModeValues = { [K in keyof typeof DISPLAY_MODE_VALUES]: number };
 
 export interface DeviceServiceOptions {
-  /** Override DISPLAY_MODE_VALUES (e.g. after a hardware test). */
+  /** Initial value of DISPLAY_MODE_VALUES (changeable later with setHardwareOverrides). */
   displayModeValues?: Partial<DisplayModeValues>;
+  /**
+   * Initial advanced hardware settings (unverified protocol values), applied over the defaults and
+   * over `displayModeValues`. Changeable at run time with setHardwareOverrides; invalid values throw
+   * INVALID_ARGUMENT from createDeviceService.
+   */
+  hardwareOverrides?: Partial<HardwareOverrides>;
+  /** Called with the new values after every successful setHardwareOverrides / resetHardwareOverrides (persistence hook). Errors it throws are ignored. */
+  onHardwareOverridesChange?: (values: HardwareOverrides) => void;
   /** Creates sessions; default routes serial/net to the real @novastar bindings. */
   sessionFactory?: SessionFactory;
   /** Advanced-user password, default "admin". */
@@ -172,7 +184,17 @@ export function mapError(err: unknown): DeviceError {
 }
 
 export function createDeviceService(options: DeviceServiceOptions = {}): DeviceService {
-  const dmv: DisplayModeValues = { ...DISPLAY_MODE_VALUES, ...options.displayModeValues };
+  // The ONE mutable place for the unverified protocol values. Features read it at call time through
+  // ctx.hardwareOverrides(), so a change applies to the very next command without reconnecting.
+  // Initial value: defaults < the old `displayModeValues` option < `hardwareOverrides` option.
+  const initialOverrides = resolveHardwareOverrides(
+    mergeHardwareOverrides(DEFAULT_HARDWARE_OVERRIDES, options.displayModeValues),
+    options.hardwareOverrides,
+  );
+  if (!initialOverrides.ok) {
+    throw new DeviceError('INVALID_ARGUMENT', `invalid hardware overrides: ${initialOverrides.errors.join('; ')}`);
+  }
+  let overrides: HardwareOverrides = initialOverrides.values;
   const advancedPassword = options.advancedPassword ?? 'admin';
   const timeoutMs = options.timeoutMs ?? 2000;
   const netPort = options.netPort ?? DEFAULT_NET_PORT;
@@ -510,9 +532,10 @@ export function createDeviceService(options: DeviceServiceOptions = {}): DeviceS
     }
     connected(id);
     // Blackout = kill register, freeze = lock register; they are independent of the test-pattern
-    // register. 'normal' switches both off. Values: see DISPLAY_MODE_VALUES.
-    const kill = mode === 'blackout' ? dmv.killOn : dmv.killOff;
-    const lock = mode === 'freeze' ? dmv.lockOn : dmv.lockOff;
+    // register. 'normal' switches both off. Values: see DISPLAY_MODE_VALUES; read now, at call time.
+    const { killOn, killOff, lockOn, lockOff } = overrides;
+    const kill = mode === 'blackout' ? killOn : killOff;
+    const lock = mode === 'freeze' ? lockOn : lockOff;
     await withSession(id, async (s) => {
       await s.SetKillMode(SENDER, ALL_PORTS, ALL_CARDS, true, kill);
       await s.SetLockMode(SENDER, ALL_PORTS, ALL_CARDS, true, lock);
@@ -526,7 +549,40 @@ export function createDeviceService(options: DeviceServiceOptions = {}): DeviceS
     return ok;
   }
 
-  const ctx: FeatureContext = { withSession, userLevel: () => ({ ...userLevel }), timeoutMs };
+  const ctx: FeatureContext = {
+    withSession,
+    userLevel: () => ({ ...userLevel }),
+    timeoutMs,
+    hardwareOverrides: () => ({ ...overrides }),
+  };
+
+  const requireAdvancedForOverrides = (): void => {
+    if (userLevel.level !== 'advanced') {
+      throw new DeviceError('PERMISSION', 'changing the advanced hardware settings requires an advanced user login');
+    }
+  };
+  const applyOverrides = (next: HardwareOverrides): HardwareOverrides => {
+    overrides = next;
+    try {
+      options.onHardwareOverridesChange?.({ ...next });
+    } catch {
+      // Persisting is best effort: the new values are in effect for this session either way.
+    }
+    return { ...next };
+  };
+  async function getHardwareOverrides(): Promise<HardwareOverrides> {
+    return { ...overrides };
+  }
+  async function setHardwareOverrides(partial: Partial<HardwareOverrides>): Promise<HardwareOverrides> {
+    requireAdvancedForOverrides();
+    const res = resolveHardwareOverrides(overrides, partial);
+    if (!res.ok) throw new DeviceError('INVALID_ARGUMENT', `invalid hardware settings: ${res.errors.join('; ')}`);
+    return applyOverrides(res.values);
+  }
+  async function resetHardwareOverrides(): Promise<HardwareOverrides> {
+    requireAdvancedForOverrides();
+    return applyOverrides({ ...DEFAULT_HARDWARE_OVERRIDES });
+  }
 
   /** Routes a core method to the H series / Taurus back end by the id prefix. */
   const routed = <A extends unknown[], R>(
@@ -617,6 +673,9 @@ export function createDeviceService(options: DeviceServiceOptions = {}): DeviceS
       (id, mode) => taurus.setDisplayMode(id, mode),
     ),
     login,
+    getHardwareOverrides,
+    setHardwareOverrides,
+    resetHardwareOverrides,
     getUserLevel: () => ({ ...userLevel }),
     getFirmwareDetails(id: string): FirmwareDetails {
       const { entry } = connected(id);

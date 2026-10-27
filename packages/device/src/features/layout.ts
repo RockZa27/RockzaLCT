@@ -33,6 +33,7 @@ import {
   planLayoutWrite,
   validateLayout,
   type LayoutApi,
+  type ScannerXyOrder,
   type LayoutHardwareCard,
   type LayoutHardwarePort,
   type LayoutHardwareState,
@@ -41,7 +42,7 @@ import {
   type WriteLayoutResult,
 } from '@rockzalct/shared';
 import type { SessionLike } from '../session.js';
-import type { FeatureContext } from './context.js';
+import { currentOverrides, type FeatureContext } from './context.js';
 
 const SENDER = 0;
 const ALL_PORTS = 0xff;
@@ -94,11 +95,27 @@ const asLayout = (s: SessionLike): LayoutSession => s as unknown as LayoutSessio
  * the generated single-axis SetEthernetPortScannerY writes at +4, so the library is not
  * self-consistent. The vendor functions (not the constants) are what NovaLCT's code path runs, so
  * those are followed here.
+ *
+ * `order` is the advanced hardware setting HardwareOverrides.scannerXyOrder: 'x-high' (default, the
+ * description above) or 'x-low' (x in the low 16 bits). The write path honours the same setting, see
+ * `scannerXyWriteArgs`.
  */
-export function decodeScannerXY(data: Buffer): { x: number; y: number } {
+export function decodeScannerXY(data: Buffer, order: ScannerXyOrder = 'x-high'): { x: number; y: number } {
   if (data.length < 4) throw new DeviceError('PROTOCOL', `short card position block (${data.length} bytes)`);
   const word = data.readUInt32LE(0);
-  return { x: word >>> 16, y: word & 0xffff };
+  const high = word >>> 16;
+  const low = word & 0xffff;
+  return order === 'x-low' ? { x: low, y: high } : { x: high, y: low };
+}
+
+/**
+ * The (x, y) arguments to hand to the library's SetEthernetPortScannerXY so that the word on the
+ * wire matches `order`. The library always writes `(arg1 << 16) + arg2`, i.e. arg1 lands in the high
+ * half. 'x-high' passes (x, y) unchanged (original behaviour); 'x-low' passes (y, x) so x ends up in
+ * the low half. Mirror image of decodeScannerXY, which keeps read and write consistent.
+ */
+export function scannerXyWriteArgs(x: number, y: number, order: ScannerXyOrder): [number, number] {
+  return order === 'x-low' ? [y, x] : [x, y];
 }
 
 export function createLayoutFeature(ctx: FeatureContext): LayoutApi {
@@ -125,6 +142,7 @@ export function createLayoutFeature(ctx: FeatureContext): LayoutApi {
   async function readLayout(id: string): Promise<LayoutHardwareState> {
     return ctx.withSession(id, async (session) => {
       const s = asLayout(session);
+      const xyOrder = currentOverrides(ctx).scannerXyOrder; // at call time, see FeatureContext.hardwareOverrides
       const complexScreen = (await s.ReadSender_ComplexCfgScreenFlagSpace(SENDER)) !== 0;
       const perPort = await s.ReadScanerCountOfSenderCard(SENDER);
       let outputPorts = 0;
@@ -145,7 +163,7 @@ export function createLayoutFeature(ctx: FeatureContext): LayoutApi {
         });
         for (let index = 0; index < count; index += 1) {
           try {
-            const pos = decodeScannerXY(await s.ReadEthernetPortScannerXY(SENDER, port, index));
+            const pos = decodeScannerXY(await s.ReadEthernetPortScannerXY(SENDER, port, index), xyOrder);
             cards.push({
               port,
               index,
@@ -177,6 +195,7 @@ export function createLayoutFeature(ctx: FeatureContext): LayoutApi {
     const enablePorts = options.enablePorts ?? true;
     return ctx.withSession(id, async (session) => {
       const s = asLayout(session);
+      const xyOrder = currentOverrides(ctx).scannerXyOrder; // at call time, same setting as readLayout
       if (!options.ignoreCardCount) {
         for (const chain of model.ports) {
           if (chain.cabinets.length === 0) continue;
@@ -198,7 +217,8 @@ export function createLayoutFeature(ctx: FeatureContext): LayoutApi {
         await s.SetPortHeight(SENDER, false, p.height, p.port);
       }
       for (const c of plan.cards) {
-        await s.SetEthernetPortScannerXY(SENDER, false, c.x, c.y, c.port, c.index);
+        const [first, second] = scannerXyWriteArgs(c.x, c.y, xyOrder);
+        await s.SetEthernetPortScannerXY(SENDER, false, first, second, c.port, c.index);
         await s.SetControlWidth(SENDER, c.port, c.index, false, c.width);
         await s.SetControlHeight(SENDER, c.port, c.index, false, c.height);
         if (options.writeCabinetNumbers) await s.SetvCabinetSerialNum(SENDER, c.port, c.index, false, c.cabinetNumber);

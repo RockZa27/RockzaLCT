@@ -1,3 +1,4 @@
+import { advancedEn, advancedTh } from './advanced';
 import { hseriesEn, hseriesTh } from './hseries';
 import { layoutEn, layoutTh } from './layout';
 import { monitorEn, monitorTh } from './monitor';
@@ -20,6 +21,7 @@ const en = {
   ...monitorEn,
   ...calibrationEn,
   ...maintenanceEn,
+  ...advancedEn,
   'app.name': 'RockzaLCT',
   'nav.connection': 'Connection',
   'nav.brightness': 'Brightness',
@@ -111,6 +113,7 @@ const th: Record<MessageKey, string> = {
   ...monitorTh,
   ...calibrationTh,
   ...maintenanceTh,
+  ...advancedTh,
   'app.name': 'RockzaLCT',
   'nav.connection': 'การเชื่อมต่อ',
   'nav.brightness': 'ความสว่าง',

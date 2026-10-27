@@ -3,6 +3,7 @@ import type { DeviceApi } from '@rockzalct/shared';
 import { Layout, isPageVisible, type PageId } from './components/Layout';
 import { I18nProvider } from './i18n/I18nProvider';
 import type { Lang } from './i18n/dictionary';
+import { AdvancedSettingsPage } from './pages/AdvancedSettingsPage';
 import { BrightnessPage } from './pages/BrightnessPage';
 import { ConnectionPage } from './pages/ConnectionPage';
 import { HSeriesPage } from './pages/HSeriesPage';
@@ -47,6 +48,7 @@ function Shell() {
       {page === 'monitor' && <MonitorPage />}
       {page === 'calibration' && <CalibrationPage />}
       {page === 'maintenance' && <MaintenancePage />}
+      {page === 'advanced' && <AdvancedSettingsPage />}
     </Layout>
   );
 }

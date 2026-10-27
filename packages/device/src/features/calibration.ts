@@ -13,7 +13,6 @@ import '@novastar/native/api/MoveCorrectionFromMasterFlashToSdram';
 import '@novastar/native/api/SetCoefficientInSpiFlashErase';
 import {
   COEFFICIENT_REGION,
-  CORRECTION_STATE_BITS,
   DeviceError,
   base64ToBytes,
   bytesToBase64,
@@ -32,7 +31,7 @@ import {
   type CorrectionStateBits,
   type ReceiverTarget,
 } from '@rockzalct/shared';
-import type { FeatureContext } from './context.js';
+import { currentOverrides, type FeatureContext } from './context.js';
 import type { SessionLike } from '../session.js';
 
 /**
@@ -83,6 +82,8 @@ export const COEF_TYPE = { standard: 1, multiLayer: 4 } as const;
  *    MoveCorrectionFromMasterFlashToSdram.cjs (0x01000006) both send `Buffer.alloc(1)`. Override per
  *    service with createCalibrationFeature(ctx, { eraseSpiFlash }) if a card ignores 0.
  *  - correctionBits: see CORRECTION_STATE_BITS in @rockzalct/shared.
+ * Both are also adjustable at run time (HardwareOverrides.eraseSpiFlash / correctionEnabledBit /
+ * correctionBrightnessTypeBit, advanced hardware settings page); see createCalibrationFeature.
  */
 export const CALIBRATION_COMMAND_VALUES = {
   eraseSpiFlash: 0,
@@ -136,8 +137,14 @@ async function optional<T>(read: () => Promise<T>): Promise<T | undefined> {
 }
 
 export function createCalibrationFeature(ctx: FeatureContext, options: CalibrationCommandOptions = {}): CalibrationApi {
-  const eraseValue = options.eraseSpiFlash ?? CALIBRATION_COMMAND_VALUES.eraseSpiFlash;
-  const bits = options.correctionBits ?? CORRECTION_STATE_BITS;
+  // Precedence per call: `options` given to this factory > the advanced hardware settings in effect
+  // now (ctx) > the built-in constants. Read inside each command, never cached here, so a settings
+  // change applies to the very next command.
+  const eraseValue = (): number => options.eraseSpiFlash ?? currentOverrides(ctx).eraseSpiFlash;
+  const bits = (): CorrectionStateBits => {
+    const o = currentOverrides(ctx);
+    return options.correctionBits ?? { enabled: o.correctionEnabledBit, brightnessType: o.correctionBrightnessTypeBit };
+  };
 
   // Checked before any request is built, so a refused call sends nothing.
   const requireAdvanced = (what: string): void => {
@@ -163,7 +170,7 @@ export function createCalibrationFeature(ctx: FeatureContext, options: Calibrati
       checkCard(portIndex, cardIndex);
       return on(id, async (s) => {
         const stateRaw = await s.ReadCorrectionState(SENDER, portIndex, cardIndex);
-        const state: CalibrationCardState = { portIndex, cardIndex, stateRaw, ...decodeCorrectionState(stateRaw, bits) };
+        const state: CalibrationCardState = { portIndex, cardIndex, stateRaw, ...decodeCorrectionState(stateRaw, bits()) };
         const source = await optional(() => s.ReadCoefficientSource(SENDER, portIndex, cardIndex));
         if (source !== undefined) {
           state.coefficientSourceRaw = source;
@@ -187,7 +194,7 @@ export function createCalibrationFeature(ctx: FeatureContext, options: Calibrati
       await on(id, async (s) => {
         if (enabled && type !== undefined) {
           // Type-aware enable: one state byte (bit layout UNVERIFIED, see CORRECTION_STATE_BITS).
-          await s.SetCorrectionOn_2(SENDER, port, card, broadcast, composeCorrectionState(type, bits));
+          await s.SetCorrectionOn_2(SENDER, port, card, broadcast, composeCorrectionState(type, bits()));
         } else {
           await s.SetCorrectionOn(SENDER, port, card, broadcast, enabled);
         }
@@ -241,7 +248,7 @@ export function createCalibrationFeature(ctx: FeatureContext, options: Calibrati
     async eraseCoefficientsInFlash(id, portIndex, cardIndex): Promise<void> {
       requireAdvanced('erase calibration coefficients in flash');
       checkCard(portIndex, cardIndex);
-      await on(id, (s) => s.SetCoefficientInSpiFlashErase(SENDER, portIndex, cardIndex, false, eraseValue));
+      await on(id, (s) => s.SetCoefficientInSpiFlashErase(SENDER, portIndex, cardIndex, false, eraseValue()));
     },
   };
 }

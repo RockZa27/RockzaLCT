@@ -3,6 +3,7 @@ import type { DeviceApi } from '@rockzalct/shared';
 import { createDeviceService } from '@rockzalct/device';
 import { startHSeriesSimulator, startSimulator, startTaurusSimulator } from '@rockzalct/simulator';
 import { createMockDevice } from './mockDevice';
+import { createOverridesStore } from './overridesStore';
 
 /** Defers every call until `ready` resolves; used for back-ends that need async setup. */
 function deferred(ready: Promise<DeviceApi>): DeviceApi {
@@ -23,9 +24,20 @@ function deferred(ready: Promise<DeviceApi>): DeviceApi {
  *         Taurus accepts the password in env ROCKZALCT_TAURUS_SIM_PASSWORD (default "taurus").
  * - mock: in-memory fake, no protocol involved
  */
-const backends: Record<string, () => DeviceApi> = {
+const backends: Record<string, (opts: DeviceFactoryOptions) => DeviceApi> = {
   // Taurus players are found by UDP broadcast (library) and by probing the hosts the user types.
-  real: () => createDeviceService({ taurusDiscovery: true, taurusUdpDiscovery: true }),
+  // The advanced hardware settings are loaded from, and saved to, userData/hardware-overrides.json
+  // (sim and mock keep the defaults and only hold changes made in the session).
+  real: (opts) => {
+    const store = opts.userDataDir ? createOverridesStore(opts.userDataDir) : undefined;
+    return createDeviceService({
+      taurusDiscovery: true,
+      taurusUdpDiscovery: true,
+      ...(store
+        ? { hardwareOverrides: store.load(), onHardwareOverridesChange: (values) => void store.save(values) }
+        : {}),
+    });
+  },
   sim: () =>
     deferred(
       Promise.all([
@@ -75,7 +87,15 @@ export function resolveDeviceName(
   return fromEnv && fromEnv.length > 0 ? fromEnv : 'real';
 }
 
-export function getDeviceApi(name: string | undefined = resolveDeviceName()): DeviceApi {
+export interface DeviceFactoryOptions {
+  /** Electron's userData directory; the `real` back end keeps hardware-overrides.json there. Absent = nothing persisted. */
+  userDataDir?: string;
+}
+
+export function getDeviceApi(
+  name: string | undefined = resolveDeviceName(),
+  opts: DeviceFactoryOptions = {},
+): DeviceApi {
   const key = name && name.length > 0 ? name : 'real';
   const make = backends[key];
   if (!make) {
@@ -83,5 +103,5 @@ export function getDeviceApi(name: string | undefined = resolveDeviceName()): De
       `Unknown ROCKZALCT_DEVICE "${key}". Available: ${Object.keys(backends).join(', ')}`,
     );
   }
-  return make();
+  return make(opts);
 }

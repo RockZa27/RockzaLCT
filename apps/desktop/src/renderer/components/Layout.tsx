@@ -18,7 +18,8 @@ export type PageId =
   | 'calibration'
   | 'maintenance'
   | 'hseries'
-  | 'taurus';
+  | 'taurus'
+  | 'advanced';
 
 /** `family`: only shown for that controller family while one is connected; absent = both. */
 const NAV: { id: PageId; label: MessageKey; family?: 'novastar' | 'hseries' | 'taurus' }[] = [
@@ -34,6 +35,8 @@ const NAV: { id: PageId; label: MessageKey; family?: 'novastar' | 'hseries' | 't
   { id: 'monitor', label: 'nav.monitor', family: 'novastar' },
   { id: 'calibration', label: 'nav.calibration', family: 'novastar' },
   { id: 'maintenance', label: 'nav.maintenance', family: 'novastar' },
+  // Visible for every family (no `family`): the page says that its values only apply to MCTRL / VX.
+  { id: 'advanced', label: 'nav.advanced' },
 ];
 
 /**

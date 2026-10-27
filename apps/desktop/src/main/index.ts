@@ -61,7 +61,7 @@ if (SMOKE) process.on('uncaughtException', (err) => {
 });
 
 app.whenReady().then(() => {
-  const api = getDeviceApi();
+  const api = getDeviceApi(undefined, { userDataDir: app.getPath('userData') });
   registerDeviceIpc(ipcMain, api);
   const win = createWindow();
   if (SMOKE) runSmokeTest(win, api);

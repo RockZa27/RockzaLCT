@@ -85,13 +85,14 @@ describe('navigation per controller family', () => {
       'Monitoring',
       'Calibration',
       'Function card & firmware',
+      'Advanced hardware settings',
     ]);
   });
 
   it('an H series hides the MCTRL-only pages and keeps Brightness and Test & Display', async () => {
     const { user } = renderApp(hApi());
     await connectAndGo(user, screen);
-    expect(navNames()).toEqual(['Connection', 'Brightness', 'Test & Display', 'H series']);
+    expect(navNames()).toEqual(['Connection', 'Brightness', 'Test & Display', 'H series', 'Advanced hardware settings']);
   });
 
   it('an MCTRL/VX hides the H series page', async () => {
