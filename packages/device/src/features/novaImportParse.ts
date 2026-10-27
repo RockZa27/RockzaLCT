@@ -233,14 +233,12 @@ let screenLib: Promise<ScreenLib> | undefined;
 
 /**
  * Load @novastar/screen on first use (it pulls the whole native codec set, ~0.6 s). typed-struct,
- * which it uses, finishes its own set-up asynchronously after being imported, so wait a moment
- * before the first decode (a decode straight after the import throws "getString is not a function").
+ * which it uses, sets its string helpers only after its own `import('debug')` / `import('iconv-lite')`
+ * resolve (build/node.mjs), so a decode straight after the import throws "getString is not a
+ * function". parseScr retries that specific error until the set-up has run.
  */
 export function loadScreenLib(): Promise<ScreenLib> {
-  screenLib ??= import('@novastar/screen').then(async (lib) => {
-    await new Promise((resolve) => setTimeout(resolve, 20));
-    return lib;
-  });
+  screenLib ??= import('@novastar/screen');
   screenLib.catch(() => {
     screenLib = undefined; // allow a retry
   });
@@ -269,10 +267,19 @@ export async function parseScr(file: { name: string; bytes: Uint8Array }): Promi
     if (file.bytes.length > MAX_SCR_FILE_BYTES) throw new NovaFileError('too-large', 'the file is too large');
     const lib = await loadScreenLib();
     let cfg: ReturnType<ScreenLib['decodeScreenConfig']>;
-    try {
-      cfg = lib.decodeScreenConfig(Buffer.from(file.bytes.buffer, file.bytes.byteOffset, file.bytes.byteLength));
-    } catch (err) {
-      throw new NovaFileError('scr-invalid', err instanceof Error ? err.message : String(err));
+    const buf = Buffer.from(file.bytes.buffer, file.bytes.byteOffset, file.bytes.byteLength);
+    for (let attempt = 0; ; attempt++) {
+      try {
+        cfg = lib.decodeScreenConfig(buf);
+        break;
+      } catch (err) {
+        // typed-struct still initialising (see loadScreenLib): wait for it, up to ~2 s in total.
+        if (err instanceof TypeError && err.message.includes('getString') && attempt < 20) {
+          await new Promise((resolve) => setTimeout(resolve, 100));
+          continue;
+        }
+        throw new NovaFileError('scr-invalid', err instanceof Error ? err.message : String(err));
+      }
     }
     const screens: ScrScreen[] = (cfg.screens as unknown as Node[]).map((s) => {
       const regions = Array.isArray(s['ScannerRegionList']) ? (s['ScannerRegionList'] as Node[]).map(mapRegion) : [];
