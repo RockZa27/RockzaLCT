@@ -5,8 +5,11 @@
 //    device are delivered and "nothing listens there" surfaces as ECONNREFUSED right away instead
 //    of after a full timeout.
 //  - Requests are serialised (one in flight at a time) and replies are matched by `cmd`, which is
-//    how the reference module matches them too (index.js:42). Replies for other commands (late
-//    answers to an earlier timed-out request, device chatter) are ignored.
+//    how the reference module matches them too (index.js:42), and additionally by the echoed
+//    `screenId` when the reply carries one (see expectedReplyScreenId), so a late duplicate for
+//    another screen's request is dropped. Replies for other commands (late answers to an earlier
+//    timed-out request, device chatter) are ignored.
+//  - Non-idempotent commands (NON_IDEMPOTENT_CMDS: W0605, W0506) are sent exactly once.
 //  - When a request times out, the requests that were already queued behind it fail at once with
 //    TIMEOUT instead of each burning its own retries against a device that just went silent (a
 //    page refreshing four lists would otherwise wait four times as long). Requests made after the
@@ -21,7 +24,13 @@
 
 import { createSocket, type Socket } from 'node:dgram';
 import { DeviceError } from '@rockzalct/shared';
-import { decodeReply, encodeRequest, type HSeriesReply, type HSeriesRequest } from './protocol.js';
+import {
+  decodeReply,
+  encodeRequest,
+  expectedReplyScreenId,
+  NON_IDEMPOTENT_CMDS,
+  type HSeriesReply, type HSeriesRequest,
+} from './protocol.js';
 
 /** Upper bound for `retries`, whatever the caller asks for. */
 export const MAX_RETRIES = 5;
@@ -42,6 +51,8 @@ export interface RequestOptions {
 
 interface Pending {
   cmd: string;
+  /** screenId the reply must echo when it carries one. */
+  screenId: number | undefined;
   resolve(reply: HSeriesReply): void;
   reject(err: DeviceError): void;
 }
@@ -141,6 +152,10 @@ export class HSeriesClient {
       return;
     }
     if (reply.cmd !== pending.cmd) return; // not ours (late reply / unsolicited)
+    // A late duplicate for an earlier same-cmd request (retry, other screen) echoes a different
+    // screen: drop it instead of answering the current request with another screen's data.
+    const echoed = reply.data['screenId'];
+    if (pending.screenId !== undefined && typeof echoed === 'number' && echoed !== pending.screenId) return;
     this.pending = undefined;
     if (reply.ack !== 'Ok') {
       pending.reject(
@@ -169,7 +184,8 @@ export class HSeriesClient {
     }
     const socket = await this.open();
     const timeoutMs = opts.timeoutMs ?? this.timeoutMs;
-    const attempts = 1 + clampRetries(opts.retries ?? this.retries);
+    // Never re-send a non-idempotent command: a lost reply does not prove it was not executed.
+    const attempts = NON_IDEMPOTENT_CMDS.has(req.cmd) ? 1 : 1 + clampRetries(opts.retries ?? this.retries);
     const datagram = encodeRequest(req);
     this.malformed = 0;
     for (let attempt = 0; attempt < attempts; attempt += 1) {
@@ -180,6 +196,7 @@ export class HSeriesClient {
         }, timeoutMs);
         const entry: Pending = {
           cmd: req.cmd,
+          screenId: expectedReplyScreenId(req),
           resolve: (r) => {
             clearTimeout(timer);
             resolve(r);

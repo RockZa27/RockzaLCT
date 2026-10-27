@@ -88,8 +88,8 @@ export interface DeviceServiceOptions {
    * INVALID_ARGUMENT from createDeviceService.
    */
   hardwareOverrides?: Partial<HardwareOverrides>;
-  /** Called with the new values after every successful setHardwareOverrides / resetHardwareOverrides (persistence hook). Errors it throws are ignored. */
-  onHardwareOverridesChange?: (values: HardwareOverrides) => void;
+  /** Called with the new values after every successful setHardwareOverrides / resetHardwareOverrides (persistence hook). If it throws or rejects, the values stay applied for this session but the call rejects with PROTOCOL "applied for this session only; could not be saved: <reason>". */
+  onHardwareOverridesChange?: (values: HardwareOverrides) => void | Promise<void>;
   /** Creates sessions; default routes serial/net to the real @novastar bindings. */
   sessionFactory?: SessionFactory;
   /** Advanced-user password, default "admin". */
@@ -442,7 +442,19 @@ export function createDeviceService(options: DeviceServiceOptions = {}): DeviceS
     };
   }
 
-  async function connect(id: string): Promise<ControllerInfo> {
+  const connecting = new Map<string, Promise<ControllerInfo>>();
+  /** Single-flight per id: concurrent callers share one in-flight connect (one session opened). */
+  function connect(id: string): Promise<ControllerInfo> {
+    const inflight = connecting.get(id);
+    if (inflight) return inflight;
+    const p = connectOnce(id).finally(() => {
+      if (connecting.get(id) === p) connecting.delete(id);
+    });
+    connecting.set(id, p);
+    return p;
+  }
+
+  async function connectOnce(id: string): Promise<ControllerInfo> {
     const entry = lookup(id);
     if (!entry.session) {
       const session = await guard(() => factory.open(entry.controller, { timeoutMs }));
@@ -500,19 +512,19 @@ export function createDeviceService(options: DeviceServiceOptions = {}): DeviceS
       if (value.percent !== undefined) {
         await s.SetGlobalBrightness(SENDER, ALL_PORTS, ALL_CARDS, true, percentToRaw(value.percent));
       }
-      if (value.red !== undefined || value.green !== undefined || value.blue !== undefined) {
-        const cur = await readBrightness(s);
-        const raw = (v: number | undefined, fallback: number): number => (v === undefined ? fallback : percentToRaw(v));
-        await s.SetRGBBrightness(
-          SENDER,
-          ALL_PORTS,
-          ALL_CARDS,
-          true,
-          raw(value.red, percentToRaw(cur.state.red)),
-          raw(value.green, percentToRaw(cur.state.green)),
-          raw(value.blue, percentToRaw(cur.state.blue)),
-          cur.vRed,
-        );
+      // One single-byte broadcast write per channel the caller changed (SetRedBrightness @
+      // 0x02000002, SetGreenBrightness @ 0x02000003, SetBlueBrightness @ 0x02000004;
+      // node_modules/@novastar/native/dist/api/Set{Red,Green,Blue}Brightness.mjs). Channels the caller
+      // did not name are never written, so no card's raw bytes (nor its vRed) go through a
+      // percent round trip or get overwritten with card (0,0)'s values.
+      if (value.red !== undefined) {
+        await s.SetRedBrightness(SENDER, ALL_PORTS, ALL_CARDS, true, percentToRaw(value.red));
+      }
+      if (value.green !== undefined) {
+        await s.SetGreenBrightness(SENDER, ALL_PORTS, ALL_CARDS, true, percentToRaw(value.green));
+      }
+      if (value.blue !== undefined) {
+        await s.SetBlueBrightness(SENDER, ALL_PORTS, ALL_CARDS, true, percentToRaw(value.blue));
       }
       return (await readBrightness(s)).state;
     });
@@ -561,12 +573,13 @@ export function createDeviceService(options: DeviceServiceOptions = {}): DeviceS
       throw new DeviceError('PERMISSION', 'changing the advanced hardware settings requires an advanced user login');
     }
   };
-  const applyOverrides = (next: HardwareOverrides): HardwareOverrides => {
-    overrides = next;
+  const applyOverrides = async (next: HardwareOverrides): Promise<HardwareOverrides> => {
+    overrides = next; // in effect for this session whether or not saving works
     try {
-      options.onHardwareOverridesChange?.({ ...next });
-    } catch {
-      // Persisting is best effort: the new values are in effect for this session either way.
+      await options.onHardwareOverridesChange?.({ ...next });
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : String(err);
+      throw new DeviceError('PROTOCOL', `applied for this session only; could not be saved: ${reason}`);
     }
     return { ...next };
   };
@@ -577,11 +590,11 @@ export function createDeviceService(options: DeviceServiceOptions = {}): DeviceS
     requireAdvancedForOverrides();
     const res = resolveHardwareOverrides(overrides, partial);
     if (!res.ok) throw new DeviceError('INVALID_ARGUMENT', `invalid hardware settings: ${res.errors.join('; ')}`);
-    return applyOverrides(res.values);
+    return await applyOverrides(res.values);
   }
   async function resetHardwareOverrides(): Promise<HardwareOverrides> {
     requireAdvancedForOverrides();
-    return applyOverrides({ ...DEFAULT_HARDWARE_OVERRIDES });
+    return await applyOverrides({ ...DEFAULT_HARDWARE_OVERRIDES });
   }
 
   /** Routes a core method to the H series / Taurus back end by the id prefix. */

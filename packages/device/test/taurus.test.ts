@@ -530,3 +530,15 @@ describe('Taurus privacy mode (TLS)', () => {
     expect(sim.state.logins.accepted).toBe(1);
   });
 });
+
+describe('Taurus credentials (review item 7)', () => {
+  it('credentials set before a no-op connect() (client already live) do not survive it', async () => {
+    const { sim, svc, id } = await connected();
+    await svc.setTaurusCredentials(id, { password: PASSWORD });
+    await svc.connect(id); // client is live: nothing to log in, but the credentials must still be consumed
+    await sim.close();
+    await new Promise((r) => setTimeout(r, 50));
+    // Stale credentials would make this try (and fail) to open the dead player: PROTOCOL.
+    expect(await codeOf(svc.connect(id))).toBe('PERMISSION');
+  });
+});

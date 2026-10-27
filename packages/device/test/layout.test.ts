@@ -10,7 +10,7 @@ import {
 } from '@rockzalct/shared';
 import { cardCountAddress, startSimulator, type SimulatorHandle } from '@rockzalct/simulator';
 import { createDeviceService, createNetSessionFactory, type DeviceService } from '../src/index.js';
-import { decodeScannerXY } from '../src/features/layout.js';
+import { createLayoutFeature, decodeScannerXY } from '../src/features/layout.js';
 
 // Register addresses, copied from the generated @novastar/native api files (dist/api/<Name>.cjs)
 // so that the tests check the bytes on the wire independently of the implementation:
@@ -305,5 +305,24 @@ describe('showCabinetNumbers', () => {
     bad.ports = [];
     await expectCode(service.showCabinetNumbers(id, bad, true), 'INVALID_ARGUMENT');
     await expectCode(service.showCabinetNumbers(id, wall(), 'yes' as unknown as boolean), 'INVALID_ARGUMENT');
+  });
+});
+
+describe('layout port/card limits (review item 1)', () => {
+  it('ports 255 and 256 are rejected with INVALID_ARGUMENT before any I/O', async () => {
+    const calls: string[] = [];
+    const s: any = new Proxy({}, { get: (_t, name: string) => async () => void calls.push(name) });
+    const feat = createLayoutFeature({
+      withSession: async (_id: string, fn: any) => fn(s),
+      userLevel: () => ({ level: 'advanced' }),
+      timeoutMs: 1,
+      hardwareOverrides: () => ({ scannerXyOrder: 'x-high' }),
+    } as any);
+    for (const port of [255, 256, 32]) {
+      const model = { screen: createLayoutScreen(1, 1, 128, 128), ports: [{ port, cabinets: [{ row: 0, col: 0 }] }] };
+      await expectCode(feat.writeLayout('x', model as any, { ignoreCardCount: true }), 'INVALID_ARGUMENT');
+      await expectCode(feat.showCabinetNumbers('x', model as any, true), 'INVALID_ARGUMENT');
+    }
+    expect(calls).toEqual([]);
   });
 });

@@ -10,6 +10,10 @@
  * signed 32-bit `(x << 16) + y`, so x must stay below 0x8000). */
 export const LAYOUT_MAX_COORD = 0x7fff;
 /** Pixel capacity of one gigabit output port (NovaLCT figure for 8-bit, 60 Hz). */
+/** Highest port index a layout may name: 0xFF is the codec's "all ports" broadcast, never a real port. */
+export const LAYOUT_MAX_PORT_INDEX = 0xfe;
+/** Most receiving cards one chain may hold: card index 0xFFFF is the "all cards" broadcast. */
+export const LAYOUT_MAX_CARDS_PER_PORT = 0xffff;
 export const LAYOUT_DEFAULT_PORT_CAPACITY = 650_000;
 
 export interface CabinetRef {
@@ -628,12 +632,13 @@ export function validateLayout(model: LayoutModel, opts: LayoutValidateOptions =
   const owner = new Map<string, number>();
   let anyCabinet = false;
   for (const p of model.ports) {
-    if (!Number.isInteger(p.port) || p.port < 0 || seenPort.has(p.port) || (opts.maxPorts !== undefined && p.port >= opts.maxPorts)) {
+    if (!Number.isInteger(p.port) || p.port < 0 || p.port > LAYOUT_MAX_PORT_INDEX || seenPort.has(p.port) || (opts.maxPorts !== undefined && p.port >= opts.maxPorts)) {
       err({ code: 'port-invalid', port: p.port, params: opts.maxPorts !== undefined ? { max: opts.maxPorts } : undefined });
     }
     seenPort.add(p.port);
-    if (opts.maxCardsPerPort !== undefined && p.cabinets.length > opts.maxCardsPerPort) {
-      err({ code: 'port-too-many-cards', port: p.port, params: { count: p.cabinets.length, max: opts.maxCardsPerPort } });
+    const cardCap = Math.min(opts.maxCardsPerPort ?? LAYOUT_MAX_CARDS_PER_PORT, LAYOUT_MAX_CARDS_PER_PORT);
+    if (p.cabinets.length > cardCap) {
+      err({ code: 'port-too-many-cards', port: p.port, params: { count: p.cabinets.length, max: cardCap } });
     }
     let pixels = 0;
     let prev: LayoutRect | null = null;

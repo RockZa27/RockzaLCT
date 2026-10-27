@@ -17,7 +17,7 @@ import {
   encodeRequest,
   type DeviceService,
 } from '../src/index.js';
-import { reqInitStatus, reqScreenList } from '../src/hseries/protocol.js';
+import { reqInitStatus, reqLoadPreset, reqScreenBrightness, reqScreenDetails, reqScreenList, reqSourceSwitch } from '../src/hseries/protocol.js';
 
 const codeOf = async (p: Promise<unknown>): Promise<string | undefined> =>
   p.then(
@@ -526,5 +526,52 @@ describe('H series through the device service', () => {
     raw.close();
     expect(replies).toBe(0);
     expect(hsim.state.malformedRequests).toBe(4);
+  });
+});
+
+describe('H series client review fixes', () => {
+  it('a late duplicate reply for another screen never answers the next same-cmd request (item 2)', async () => {
+    const srv = await rawServer(() => undefined);
+    await srv.close();
+    const socket = createSocket('udp4');
+    await new Promise<void>((r) => socket.bind(0, '127.0.0.1', r));
+    const port = socket.address().port;
+    socket.on('message', (msg, rinfo) => {
+      const req = (JSON.parse(msg.toString()) as { cmd: string; param1: number }[])[0]!;
+      // slow for screen 0 (300ms > 200ms timeout, so the client retries), slower for the others
+      const delay = req.param1 === 0 ? 300 : 450;
+      setTimeout(
+        () => socket.send(JSON.stringify([{ cmd: req.cmd, ack: 'Ok', screenId: req.param1, brightness: 10 + req.param1 }]), rinfo.port, rinfo.address),
+        delay,
+      );
+    });
+    const c = new HSeriesClient({ host: '127.0.0.1', port, timeoutMs: 200, retries: 2 });
+    const r0 = await c.request(reqScreenDetails(0));
+    const r1 = await c.request(reqScreenDetails(1), { timeoutMs: 1000 });
+    await new Promise((r) => setTimeout(r, 400));
+    c.close();
+    socket.close();
+    expect(r0.data['screenId']).toBe(0);
+    expect(r1.data['screenId']).toBe(1);
+  });
+
+  it('non-idempotent commands (W0605, W0506) are sent once; reads and explicit-state writes are retried (item 4)', async () => {
+    const counts: Record<string, number> = {};
+    const srv = await rawServer((msg, send) => {
+      const cmd = (JSON.parse(msg.toString()) as { cmd: string }[])[0]!.cmd;
+      counts[cmd] = (counts[cmd] ?? 0) + 1;
+      if (cmd.startsWith('W0605') || cmd === 'W0506') return; // never answered
+      if (counts[cmd]! >= 2) send(JSON.stringify([{ cmd, ack: 'Ok' }])); // first reply "lost"
+    });
+    const c = new HSeriesClient({ host: '127.0.0.1', port: srv.port, timeoutMs: 100, retries: 2 });
+    expect(await codeOf(c.request(reqLoadPreset(0, 3)))).toBe('TIMEOUT');
+    expect(counts['W0605']).toBe(1);
+    expect(await codeOf(c.request(reqSourceSwitch(0, 1, { inputId: 1, cropId: 255 })))).toBe('TIMEOUT');
+    expect(counts['W0506']).toBe(1);
+    // the earlier timeouts failed queued requests only; this one starts a fresh epoch
+    await c.request(reqScreenBrightness(0, 50));
+    expect(counts['W0410']).toBe(2);
+    c.close();
+    await srv.close();
   });
 });

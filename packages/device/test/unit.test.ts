@@ -26,6 +26,9 @@ function fakeSession(overrides: Partial<SessionLike> = {}): SessionLike {
     ReadAllBrightnessInfo: async () => Buffer.from([255, 255, 128, 0, 255]),
     SetGlobalBrightness: async () => undefined,
     SetRGBBrightness: async () => undefined,
+    SetRedBrightness: async () => undefined,
+    SetGreenBrightness: async () => undefined,
+    SetBlueBrightness: async () => undefined,
     SetSelfTestMode: async () => undefined,
     SetKillMode: async () => undefined,
     SetLockMode: async () => undefined,
@@ -197,12 +200,18 @@ describe('validation', () => {
     expect(setGlobal.mock.calls.map((c) => c[4])).toEqual([0, 255]);
   });
 
-  it('partial RGB set keeps the other channels and the virtual-red byte', async () => {
+  it('partial RGB set writes only the named channel (no read-modify-write, no round trip)', async () => {
     const setRgb = vi.fn<SessionLike['SetRGBBrightness']>(async () => undefined);
+    const setGreen = vi.fn<SessionLike['SetGreenBrightness']>(async () => undefined);
+    const setRed = vi.fn<SessionLike['SetRedBrightness']>(async () => undefined);
+    const setBlue = vi.fn<SessionLike['SetBlueBrightness']>(async () => undefined);
     const setGlobal = vi.fn<SessionLike['SetGlobalBrightness']>(async () => undefined);
     const { svc, id } = await setup(
       fakeSession({
         SetRGBBrightness: setRgb,
+        SetGreenBrightness: setGreen,
+        SetRedBrightness: setRed,
+        SetBlueBrightness: setBlue,
         SetGlobalBrightness: setGlobal,
         ReadAllBrightnessInfo: async () => Buffer.from([200, 255, 128, 0, 77]),
       }),
@@ -210,8 +219,11 @@ describe('validation', () => {
     await svc.connect(id);
     await svc.setBrightness(id, { green: 100 });
     expect(setGlobal).not.toHaveBeenCalled();
-    expect(setRgb).toHaveBeenCalledTimes(1);
-    expect(setRgb.mock.calls[0]!.slice(4)).toEqual([255, 255, 0, 77]);
+    expect(setRgb).not.toHaveBeenCalled();
+    expect(setRed).not.toHaveBeenCalled();
+    expect(setBlue).not.toHaveBeenCalled();
+    expect(setGreen).toHaveBeenCalledTimes(1);
+    expect(setGreen.mock.calls[0]!.slice(3)).toEqual([true, 255]);
   });
 
   it('not-connected and unknown ids', async () => {
@@ -291,5 +303,51 @@ describe('discover', () => {
     });
     expect((await svc.discover()).map((c) => c.id)).toEqual(['net:h1:5200']);
     expect(await codeOf(svc.discover({ timeoutMs: 0 }))).toBe('INVALID_ARGUMENT');
+  });
+});
+
+describe('review fixes', () => {
+  it('concurrent connect(id) shares one in-flight connect: one session opened (item 5)', async () => {
+    let opened = 0;
+    let closed = 0;
+    const factory: SessionFactory = {
+      open: async () => {
+        opened += 1;
+        await new Promise((r) => setTimeout(r, 10));
+        return fakeSession({ close: () => { closed += 1; return true; } });
+      },
+    };
+    const svc = createDeviceService({ sessionFactory: factory, serialDiscovery: false });
+    const [found] = await svc.discover({ netHosts: ['10.0.0.1'] });
+    opened = 0; // discovery probes open (and release) a session too
+    closed = 0;
+    const [a, b] = await Promise.all([svc.connect(found!.id), svc.connect(found!.id)]);
+    expect(a).toEqual(b);
+    expect(opened).toBe(1);
+    expect(closed).toBe(0);
+    await svc.connect(found!.id); // later call after settle works again
+    expect(opened).toBe(1);
+  });
+
+  it('setBrightness({green:100}) leaves red/blue/vRed alone and never reads card (0,0) (item 3)', async () => {
+    const writes: unknown[][] = [];
+    const rec = (name: string) => async (...a: unknown[]): Promise<void> => void writes.push([name, ...a]);
+    let reads = 0;
+    const { svc, id } = await setup(
+      fakeSession({
+        ReadAllBrightnessInfo: async () => {
+          reads += 1;
+          return Buffer.from([255, 201, 255, 51, 77]); // 201/51 are not whole percents
+        },
+        SetRGBBrightness: rec('rgb') as SessionLike['SetRGBBrightness'],
+        SetRedBrightness: rec('red') as SessionLike['SetRedBrightness'],
+        SetGreenBrightness: rec('green') as SessionLike['SetGreenBrightness'],
+        SetBlueBrightness: rec('blue') as SessionLike['SetBlueBrightness'],
+      }),
+    );
+    await svc.connect(id);
+    await svc.setBrightness(id, { green: 100 });
+    expect(writes).toEqual([['green', 0, 0xff, 0xffff, true, 255]]);
+    expect(reads).toBe(1); // only the final read-back for the return value
   });
 });
