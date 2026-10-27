@@ -255,7 +255,7 @@ export function createHSeriesBackend(options: HSeriesBackendOptions): HSeriesBac
       }
     }
     const client = clientOf(id);
-    requireAdvanced('setting the brightness');
+    // Brightness is a volatile write: no login, same as MCTRL. Saving it permanently still requires advanced.
     if (value.percent !== undefined) {
       const brightness = Math.round(value.percent);
       for (const s of await screens(client)) await client.request(reqScreenBrightness(s.screenId, brightness));

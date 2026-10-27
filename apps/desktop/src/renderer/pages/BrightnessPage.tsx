@@ -17,7 +17,7 @@ const clamp = (n: number) => Math.min(100, Math.max(0, Math.round(n)));
 
 export function BrightnessPage() {
   const { t } = useI18n();
-  const { api, connectedId, info, level, run, pushInfo } = useApp();
+  const { api, connectedId, info, run, pushInfo } = useApp();
   // H series (one brightness per screen) and Taurus have no RGB gain: only the global slider is shown.
   const hseries = info?.family === 'hseries';
   const taurus = info?.family === 'taurus';
@@ -74,11 +74,6 @@ export function BrightnessPage() {
       {disabled && <p className="muted">{t('bri.needConnect')}</p>}
       {hseries && <p className="muted">{t('bri.hseriesNote')}</p>}
       {taurus && <p className="muted">{t('bri.taurusNote')}</p>}
-      {percentOnly && level !== 'advanced' && (
-        <p className="muted" data-testid="advanced-note">
-          {t('hs.advancedOnly')}
-        </p>
-      )}
 
       <div className="card">
         {channels.map(({ key, label }) => (

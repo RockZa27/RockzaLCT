@@ -320,7 +320,8 @@ describe('Brightness and Test & Display on a Taurus', () => {
     await waitFor(() => expect(screen.getByLabelText('Global brightness (number)')).toHaveValue(65));
     expect(screen.queryByLabelText('Red gain')).not.toBeInTheDocument();
     expect(screen.getByText(/only the global brightness is available/)).toBeInTheDocument();
-    expect(screen.getByTestId('advanced-note')).toBeInTheDocument();
+    // brightness needs no login on any family
+    expect(screen.queryByTestId('advanced-note')).not.toBeInTheDocument();
 
     await login(user);
     fireEvent.change(screen.getByLabelText('Global brightness (number)'), { target: { value: '30' } });

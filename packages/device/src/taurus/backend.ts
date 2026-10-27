@@ -291,7 +291,7 @@ export function createTaurusBackend(options: TaurusBackendOptions): TaurusBacken
       }
     }
     clientOf(id);
-    requireAdvanced('setting the brightness');
+    // Brightness is a volatile write: no login, same as MCTRL. Saving it permanently still requires advanced.
     return use(id, async (client) => {
       if (value.percent !== undefined) await client.setBrightness(Math.round(value.percent), false);
       return readBrightness(client);

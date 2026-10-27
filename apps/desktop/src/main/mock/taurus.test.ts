@@ -51,15 +51,14 @@ describe('mock Taurus', () => {
     expect(await codeOf(api.getTaurusSyncMode('serial:COM3'))).toBe('INVALID_ARGUMENT');
   });
 
-  it('brightness: percent only, advanced only; save needs advanced too', async () => {
+  it('brightness: percent only, no login needed (like MCTRL); saving needs advanced', async () => {
     const api = await make();
     expect(await api.getBrightness(ID)).toEqual({ percent: 70, red: 100, green: 100, blue: 100 });
-    expect(await codeOf(api.setBrightness(ID, { percent: 20 }))).toBe('PERMISSION');
-    expect(await codeOf(api.saveTaurusBrightness(ID))).toBe('PERMISSION');
-    await api.login(MOCK_ADVANCED_PASSWORD);
     expect(await codeOf(api.setBrightness(ID, { red: 50 }))).toBe('INVALID_ARGUMENT');
     expect(await codeOf(api.setBrightness(ID, { percent: 101 }))).toBe('INVALID_ARGUMENT');
     expect(await api.setBrightness(ID, { percent: 20, red: 100 })).toMatchObject({ percent: 20 });
+    expect(await codeOf(api.saveTaurusBrightness(ID))).toBe('PERMISSION');
+    await api.login(MOCK_ADVANCED_PASSWORD);
     expect(await api.saveTaurusBrightness(ID)).toMatchObject({ percent: 20 });
   });
 

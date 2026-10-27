@@ -271,7 +271,7 @@ export function createMockDevice(options: MockDeviceOptions = {}): DeviceApi {
             throw new DeviceError('INVALID_ARGUMENT', `not supported on H series: ${key} gain`);
           }
         }
-        requireAdvanced('setting the brightness');
+        // Brightness is a volatile write: no login, same as MCTRL. Saving it permanently still requires advanced.
         if (value.percent !== undefined) for (const s of hs.state.screens) s.brightness = Math.round(value.percent);
         return { percent: hs.state.screens[0]!.brightness, red: 100, green: 100, blue: 100 };
       }
@@ -281,7 +281,7 @@ export function createMockDevice(options: MockDeviceOptions = {}): DeviceApi {
             throw new DeviceError('INVALID_ARGUMENT', `not supported on Taurus: ${key} gain`);
           }
         }
-        requireAdvanced('setting the brightness');
+        // Brightness is a volatile write: no login, same as MCTRL. Saving it permanently still requires advanced.
         if (value.percent !== undefined) ts.state.brightness = Math.round(value.percent);
         return { percent: ts.state.brightness, red: 100, green: 100, blue: 100 };
       }

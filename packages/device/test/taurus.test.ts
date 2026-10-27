@@ -305,14 +305,20 @@ describe('Taurus brightness', () => {
     expect(await svc.getBrightness(id)).toEqual({ percent: 60, red: 100, green: 100, blue: 100 });
   });
 
-  it('writing needs the advanced level and sends nothing without it', async () => {
+  it('saving and sync mode need the advanced level and send nothing without it', async () => {
     const { sim, svc, id } = await connected();
     const before = sim.state.received.length;
-    expect(await codeOf(svc.setBrightness(id, { percent: 20 }))).toBe('PERMISSION');
     expect(await codeOf(svc.saveTaurusBrightness(id))).toBe('PERMISSION');
     expect(await codeOf(svc.setTaurusSyncMode(id, 'synchronous'))).toBe('PERMISSION');
     expect(sim.state.received.length).toBe(before);
     expect(sim.state.ratio).toBe(60);
+  });
+
+  it('volatile brightness works at the normal level, like MCTRL', async () => {
+    const { sim, svc, id } = await connected();
+    expect((await svc.setBrightness(id, { percent: 20 })).percent).toBe(20);
+    expect(sim.state.ratio).toBe(20);
+    expect(sim.state.persistedRatio).toBeUndefined();
   });
 
   it('round trip: percent goes out as ratio, volatile, and reads back', async () => {

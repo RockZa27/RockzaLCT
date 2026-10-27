@@ -327,7 +327,6 @@ describe('H series through the device service', () => {
   it('writes need the advanced level (PERMISSION) and send nothing before login', async () => {
     await svc.connect(id);
     const before = hsim.state.received.length;
-    expect(await codeOf(svc.setBrightness(id, { percent: 10 }))).toBe('PERMISSION');
     expect(await codeOf(svc.setTestPattern(id, 'red'))).toBe('PERMISSION');
     expect(await codeOf(svc.setDisplayMode(id, 'blackout'))).toBe('PERMISSION');
     expect(await codeOf(svc.playPreset(id, 0, 1))).toBe('PERMISSION');
@@ -337,8 +336,8 @@ describe('H series through the device service', () => {
     expect(hsim.state.received).toHaveLength(before);
     // reads are allowed at the normal level
     expect(await svc.listScreens(id)).toHaveLength(2);
-    await svc.login('admin');
-    await svc.setBrightness(id, { percent: 10 });
+    // volatile brightness is allowed at the normal level too, like MCTRL
+    expect((await svc.setBrightness(id, { percent: 10 })).percent).toBe(10);
   });
 
   it('every TestPattern maps to a W0303 id and reaches the real sender connectors only', async () => {

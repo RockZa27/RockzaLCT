@@ -44,11 +44,9 @@ describe('mock H5', () => {
     expect(await codeOf(api.listScreens('serial:COM3'))).toBe('INVALID_ARGUMENT');
   });
 
-  it('brightness: percent only, advanced only, applied to every screen', async () => {
+  it('brightness: percent only, no login needed (like MCTRL), applied to every screen', async () => {
     const api = await make();
     expect(await api.getBrightness(ID)).toEqual({ percent: 80, red: 100, green: 100, blue: 100 });
-    expect(await codeOf(api.setBrightness(ID, { percent: 20 }))).toBe('PERMISSION');
-    await api.login(MOCK_ADVANCED_PASSWORD);
     expect(await codeOf(api.setBrightness(ID, { red: 50 }))).toBe('INVALID_ARGUMENT');
     expect(await codeOf(api.setBrightness(ID, { percent: 101 }))).toBe('INVALID_ARGUMENT');
     expect(await api.setBrightness(ID, { percent: 20, red: 100 })).toMatchObject({ percent: 20 });
