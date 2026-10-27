@@ -1,11 +1,15 @@
 import { useState } from 'react';
 import { useI18n } from '../i18n/I18nProvider';
+import type { DiscoveredController } from '@rockzalct/shared';
+import { TaurusPasswordModal } from '../components/TaurusPasswordModal';
 import { useApp } from '../state/AppContext';
 
 export function ConnectionPage() {
   const { t } = useI18n();
   const { discovered, scanning, scan, connectedId, connecting, info, connect, disconnect } = useApp();
   const [hosts, setHosts] = useState('');
+  // A Taurus needs its password before connecting: ask for it first.
+  const [askPassword, setAskPassword] = useState<DiscoveredController | null>(null);
 
   const doScan = () =>
     void scan(
@@ -57,7 +61,9 @@ export function ConnectionPage() {
                         ? 'conn.transport.serial'
                         : c.transport === 'hseries'
                           ? 'conn.transport.hseries'
-                          : 'conn.transport.net',
+                          : c.transport === 'taurus'
+                            ? 'conn.transport.taurus'
+                            : 'conn.transport.net',
                     )}
                   </td>
                   <td>
@@ -70,7 +76,7 @@ export function ConnectionPage() {
                         type="button"
                         className="primary"
                         disabled={connecting || connectedId !== null}
-                        onClick={() => void connect(c.id)}
+                        onClick={() => (c.transport === 'taurus' ? setAskPassword(c) : void connect(c.id))}
                       >
                         {t('conn.connect')}
                       </button>
@@ -121,6 +127,8 @@ export function ConnectionPage() {
           )}
         </div>
       )}
+
+      {askPassword && <TaurusPasswordModal controller={askPassword} onClose={() => setAskPassword(null)} />}
     </section>
   );
 }

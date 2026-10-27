@@ -14,6 +14,7 @@ import { createMockMonitor } from './mock/monitor';
 import { createMockPersist } from './mock/persist';
 import { createMockReceiver } from './mock/receiver';
 import { createMockSender } from './mock/sender';
+import { MOCK_TAURUS_INFO, MOCK_TAURUS_PASSWORD, createMockTaurus } from './mock/taurus';
 
 export const MOCK_ADVANCED_PASSWORD = 'rockza';
 
@@ -26,6 +27,11 @@ export interface MockDeviceOptions {
    * 192.168.0.20, and always connectable by id. The desktop `mock` back end turns this on.
    */
   hseries?: boolean;
+  /**
+   * Same for the fake Taurus TB60 (id `taurus:192.168.0.30`, password MOCK_TAURUS_PASSWORD). Default
+   * false; listed when `netHosts` names 192.168.0.30. The desktop `mock` back end turns this on.
+   */
+  taurus?: boolean;
 }
 
 const PATTERNS: readonly TestPattern[] = [
@@ -51,6 +57,7 @@ interface Fake {
 }
 
 const H5_ID = 'hseries:192.168.0.20:6000';
+const TAURUS_ID = `taurus:${MOCK_TAURUS_INFO.address}`;
 
 const makeCards = (ports: number, perPort: number, model: string, fw: string) =>
   Array.from({ length: ports * perPort }, (_, i) => ({
@@ -120,6 +127,28 @@ function buildFakes(): Fake[] {
       mode: 'normal',
       connected: false,
     },
+    {
+      discovered: {
+        id: TAURUS_ID,
+        transport: 'taurus',
+        address: MOCK_TAURUS_INFO.address,
+        port: MOCK_TAURUS_INFO.tcpPort,
+        label: `TB60 ${MOCK_TAURUS_INFO.address} (SN ${MOCK_TAURUS_INFO.sn})`,
+      },
+      info: {
+        id: TAURUS_ID,
+        family: 'taurus',
+        model: 'TB60 (mock)',
+        firmwareVersion: 'unknown',
+        outputPorts: 1,
+        receivingCards: makeCards(1, 2, 'Unknown (mock)', 'FPGA 1.2.3.4 / MCU 2.0.1.0'),
+      },
+      // The Taurus brightness lives in the Taurus state, see the branches below.
+      brightness: { percent: 70, red: 100, green: 100, blue: 100 },
+      pattern: 'off',
+      mode: 'normal',
+      connected: false,
+    },
   ];
 }
 
@@ -160,7 +189,9 @@ export function createMockDevice(options: MockDeviceOptions = {}): DeviceApi {
   };
 
   const hs = createMockHSeries(ctx);
+  const ts = createMockTaurus(ctx);
   const isH = (f: Fake): boolean => f.info.family === 'hseries';
+  const isT = (f: Fake): boolean => f.info.family === 'taurus';
   const requireAdvanced = (what: string): void => {
     if (!advanced) throw new DeviceError('PERMISSION', `${what} requires the advanced user level`);
   };
@@ -176,6 +207,7 @@ export function createMockDevice(options: MockDeviceOptions = {}): DeviceApi {
     ...createMockPersist(ctx, { sender, receiver, layout }),
     ...createMockMonitor(ctx),
     ...hs.api,
+    ...ts.api,
     async discover(opts) {
       await delay();
       const hosts = opts?.netHosts?.map((h) => h.trim()).filter(Boolean) ?? [];
@@ -183,7 +215,9 @@ export function createMockDevice(options: MockDeviceOptions = {}): DeviceApi {
         .filter((f) =>
           isH(f)
             ? hosts.includes(f.discovered.address) || (options.hseries === true && hosts.length === 0)
-            : f.discovered.transport === 'serial' || hosts.length === 0 || hosts.includes(f.discovered.address),
+            : isT(f)
+              ? hosts.includes(f.discovered.address) || (options.taurus === true && hosts.length === 0)
+              : f.discovered.transport === 'serial' || hosts.length === 0 || hosts.includes(f.discovered.address),
         )
         .map((f) => ({ ...f.discovered }));
     },
@@ -191,6 +225,15 @@ export function createMockDevice(options: MockDeviceOptions = {}): DeviceApi {
     async connect(id) {
       await delay();
       const f = find(id);
+      if (isT(f)) {
+        // Like the real back end: the credentials are single use and must be the player's password.
+        const credentials = ts.state.credentials;
+        ts.state.credentials = undefined;
+        if (!credentials) throw new DeviceError('PERMISSION', 'a Taurus password is required');
+        if (credentials.password !== MOCK_TAURUS_PASSWORD) {
+          throw new DeviceError('PERMISSION', 'the Taurus rejected the login (wrong username or password)');
+        }
+      }
       f.connected = true;
       return structuredClone(f.info);
     },
@@ -199,6 +242,7 @@ export function createMockDevice(options: MockDeviceOptions = {}): DeviceApi {
       await delay();
       const f = find(id);
       f.connected = false;
+      ts.state.credentials = undefined;
       f.pattern = 'off';
       f.mode = 'normal';
     },
@@ -208,6 +252,7 @@ export function createMockDevice(options: MockDeviceOptions = {}): DeviceApi {
       const f = connectedFake(id);
       // H series: brightness is per screen, the controller value is the first screen's; no RGB gain.
       if (isH(f)) return { percent: hs.state.screens[0]!.brightness, red: 100, green: 100, blue: 100 };
+      if (isT(f)) return { percent: ts.state.brightness, red: 100, green: 100, blue: 100 };
       return { ...f.brightness };
     },
 
@@ -230,6 +275,16 @@ export function createMockDevice(options: MockDeviceOptions = {}): DeviceApi {
         if (value.percent !== undefined) for (const s of hs.state.screens) s.brightness = Math.round(value.percent);
         return { percent: hs.state.screens[0]!.brightness, red: 100, green: 100, blue: 100 };
       }
+      if (isT(f)) {
+        for (const key of ['red', 'green', 'blue'] as const) {
+          if (value[key] !== undefined && value[key] !== 100) {
+            throw new DeviceError('INVALID_ARGUMENT', `not supported on Taurus: ${key} gain`);
+          }
+        }
+        requireAdvanced('setting the brightness');
+        if (value.percent !== undefined) ts.state.brightness = Math.round(value.percent);
+        return { percent: ts.state.brightness, red: 100, green: 100, blue: 100 };
+      }
       f.brightness = {
         percent: Math.round(value.percent ?? f.brightness.percent),
         red: Math.round(value.red ?? f.brightness.red),
@@ -243,6 +298,7 @@ export function createMockDevice(options: MockDeviceOptions = {}): DeviceApi {
       await delay();
       const f = connectedFake(id);
       if (!PATTERNS.includes(pattern)) throw new DeviceError('INVALID_ARGUMENT', `Unknown pattern ${String(pattern)}`);
+      if (isT(f)) throw new DeviceError('INVALID_ARGUMENT', 'not supported on Taurus: test patterns');
       if (isH(f)) requireAdvanced('showing a test pattern');
       f.pattern = pattern;
     },
@@ -251,6 +307,7 @@ export function createMockDevice(options: MockDeviceOptions = {}): DeviceApi {
       await delay();
       const f = connectedFake(id);
       if (!MODES.includes(mode)) throw new DeviceError('INVALID_ARGUMENT', `Unknown mode ${String(mode)}`);
+      if (isT(f)) throw new DeviceError('INVALID_ARGUMENT', 'not supported on Taurus: blackout / freeze');
       if (isH(f)) {
         requireAdvanced('changing the display mode');
         hs.state.blackout = mode === 'blackout';

@@ -5,6 +5,7 @@ import {
   PERSIST_METHODS,
   RECEIVER_METHODS,
   SENDER_METHODS,
+  TAURUS_METHODS,
   type DeviceApi,
 } from '@rockzalct/shared';
 
@@ -24,6 +25,7 @@ const table: { [K in keyof DeviceApi]: true } = {
   ...PERSIST_METHODS,
   ...MONITOR_METHODS,
   ...HSERIES_METHODS,
+  ...TAURUS_METHODS,
 };
 
 export const DEVICE_METHODS = Object.keys(table) as (keyof DeviceApi)[];

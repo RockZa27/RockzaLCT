@@ -1,11 +1,11 @@
 // Contract between the device layer (packages/device, runs in Electron main)
 // and the UI (apps/desktop renderer). Keep this file free of runtime deps.
 
-export type TransportKind = 'serial' | 'net' | 'hseries';
+export type TransportKind = 'serial' | 'net' | 'hseries' | 'taurus';
 
 /** A controller found during discovery but not yet connected. */
 export interface DiscoveredController {
-  /** Stable id: `serial:<path>`, `net:<host>:<port>` or `hseries:<host>:<port>` (UDP). */
+  /** Stable id: `serial:<path>`, `net:<host>:<port>`, `hseries:<host>:<port>` (UDP) or `taurus:<host>`. */
   id: string;
   transport: TransportKind;
   /** COM path (serial) or host (net). */
@@ -24,8 +24,8 @@ export interface ReceivingCardInfo {
   firmwareVersion: string;
 }
 
-/** Controller family: NovaStar MCTRL/VX sending cards (binary protocol) or H series splicers (UDP/JSON). */
-export type ControllerFamily = 'novastar' | 'hseries';
+/** Controller family: MCTRL/VX sending cards (binary protocol), H series splicers (UDP/JSON) or Taurus players (TCP 16606). */
+export type ControllerFamily = 'novastar' | 'hseries' | 'taurus';
 
 export interface ControllerInfo {
   id: string;
@@ -70,6 +70,7 @@ import type { LayoutApi } from './features/layout.js';
 import type { PersistApi } from './features/persist.js';
 import type { MonitorApi } from './features/monitor.js';
 import type { HSeriesApi } from './features/hseries.js';
+import type { TaurusApi } from './features/taurus.js';
 
 export * from './features/sender.js';
 export * from './features/receiver.js';
@@ -77,9 +78,10 @@ export * from './features/layout.js';
 export * from './features/persist.js';
 export * from './features/monitor.js';
 export * from './features/hseries.js';
+export * from './features/taurus.js';
 
 /** Operations exposed to the renderer over IPC. All methods may reject with DeviceError. */
-export interface DeviceApi extends SenderApi, ReceiverApi, LayoutApi, PersistApi, MonitorApi, HSeriesApi {
+export interface DeviceApi extends SenderApi, ReceiverApi, LayoutApi, PersistApi, MonitorApi, HSeriesApi, TaurusApi {
   discover(options?: { netHosts?: string[]; timeoutMs?: number }): Promise<DiscoveredController[]>;
   connect(id: string): Promise<ControllerInfo>;
   disconnect(id: string): Promise<void>;

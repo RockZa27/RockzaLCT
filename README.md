@@ -8,6 +8,7 @@
 2. ดับเบิลคลิกติดตั้ง (ตัวติดตั้งไม่ได้เซ็นดิจิทัล Windows SmartScreen จะเตือน เลือก **More info → Run anyway**)
 3. เปิดโปรแกรม **RockzaLCT** — ค่าเริ่มต้นคือโหมด **เครื่องจริง** (USB/COM + LAN)
 4. ลองโดยไม่มีฮาร์ดแวร์: เปิดด้วย `RockzaLCT.exe --sim` (การ์ดจำลองในตัว) หรือ `--mock` (ข้อมูลปลอม) เช่น เพิ่มต่อท้ายช่อง Target ของทางลัด
+   - โหมด `--sim` มีทั้ง MCTRL, H series และ **Taurus จำลอง** (รหัสผ่านของ Taurus จำลองคือ `taurus` หรือค่าใน env `ROCKZALCT_TAURUS_SIM_PASSWORD`); โหมด `--mock` มี Taurus ปลอมรหัสผ่าน `taurus` เช่นกัน — รหัสผ่านเหล่านี้ใช้กับของจำลองเท่านั้น Taurus จริงต้องกรอกรหัสผ่านของเครื่องเอง
 
 ทดสอบกับเครื่องจริงตาม [docs/hardware-test-checklist.md](docs/hardware-test-checklist.md)
 

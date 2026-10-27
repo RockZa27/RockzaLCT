@@ -18,9 +18,11 @@ const clamp = (n: number) => Math.min(100, Math.max(0, Math.round(n)));
 export function BrightnessPage() {
   const { t } = useI18n();
   const { api, connectedId, info, level, run, pushInfo } = useApp();
-  // H series has one brightness per screen and no RGB gain: only the global slider is shown.
+  // H series (one brightness per screen) and Taurus have no RGB gain: only the global slider is shown.
   const hseries = info?.family === 'hseries';
-  const channels = hseries ? CHANNELS.filter((c) => c.key === 'percent') : CHANNELS;
+  const taurus = info?.family === 'taurus';
+  const percentOnly = hseries || taurus;
+  const channels = percentOnly ? CHANNELS.filter((c) => c.key === 'percent') : CHANNELS;
   const [values, setValues] = useState<BrightnessState>({ percent: 0, red: 100, green: 100, blue: 100 });
   const [readback, setReadback] = useState<BrightnessState | null>(null);
   const [busy, setBusy] = useState(false);
@@ -54,7 +56,7 @@ export function BrightnessPage() {
     setBusy(true);
     try {
       const result = await run(async () => {
-        await api.setBrightness(connectedId, hseries ? { percent: values.percent } : values);
+        await api.setBrightness(connectedId, percentOnly ? { percent: values.percent } : values);
         return api.getBrightness(connectedId);
       });
       if (result) {
@@ -71,7 +73,8 @@ export function BrightnessPage() {
       <h1>{t('bri.title')}</h1>
       {disabled && <p className="muted">{t('bri.needConnect')}</p>}
       {hseries && <p className="muted">{t('bri.hseriesNote')}</p>}
-      {hseries && level !== 'advanced' && (
+      {taurus && <p className="muted">{t('bri.taurusNote')}</p>}
+      {percentOnly && level !== 'advanced' && (
         <p className="muted" data-testid="advanced-note">
           {t('hs.advancedOnly')}
         </p>

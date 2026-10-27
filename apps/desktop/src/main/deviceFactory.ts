@@ -1,6 +1,7 @@
+import * as taurusLib from '@novastar/taurus';
 import type { DeviceApi } from '@rockzalct/shared';
 import { createDeviceService } from '@rockzalct/device';
-import { startHSeriesSimulator, startSimulator } from '@rockzalct/simulator';
+import { startHSeriesSimulator, startSimulator, startTaurusSimulator } from '@rockzalct/simulator';
 import { createMockDevice } from './mockDevice';
 
 /** Defers every call until `ready` resolves; used for back-ends that need async setup. */
@@ -17,28 +18,40 @@ function deferred(ready: Promise<DeviceApi>): DeviceApi {
 /**
  * Registry of device back-ends, selected with env ROCKZALCT_DEVICE (default "real").
  * - real: NovaStar controllers over USB/COM and LAN
- * - sim:  starts the MCTRL simulator (TCP) and the H series simulator (UDP) in-process, so both
- *         controller families show up
+ * - sim:  starts the MCTRL simulator (TCP), the H series simulator (UDP) and the Taurus simulator
+ *         (TCP + UDP discovery) in-process, so all three controller families show up. The simulated
+ *         Taurus accepts the password in env ROCKZALCT_TAURUS_SIM_PASSWORD (default "taurus").
  * - mock: in-memory fake, no protocol involved
  */
 const backends: Record<string, () => DeviceApi> = {
-  real: () => createDeviceService(),
+  // Taurus players are found by UDP broadcast (library) and by probing the hosts the user types.
+  real: () => createDeviceService({ taurusDiscovery: true, taurusUdpDiscovery: true }),
   sim: () =>
     deferred(
       Promise.all([
         startSimulator({ port: 0, host: '127.0.0.1' }),
         startHSeriesSimulator({ port: 0, host: '127.0.0.1' }),
-      ]).then(([sim, hsim]) =>
+        // The codec is the real library's; the simulator package itself does not depend on it.
+        startTaurusSimulator(taurusLib, {
+          port: 0,
+          discoveryPort: 0,
+          host: '127.0.0.1',
+          password: process.env['ROCKZALCT_TAURUS_SIM_PASSWORD'] || 'taurus',
+        }),
+      ]).then(([sim, hsim, tsim]) =>
         createDeviceService({
           netHosts: ['127.0.0.1'],
           netPort: sim.port,
           // discover() probes the same host for an H series on this UDP port
           hseriesPort: hsim.port,
+          // ...and for a Taurus on this UDP discovery port
+          taurusDiscovery: true,
+          taurusDiscoveryPort: tsim.discoveryPort,
           serialDiscovery: false,
         }),
       ),
     ),
-  mock: () => createMockDevice({ hseries: true }),
+  mock: () => createMockDevice({ hseries: true, taurus: true }),
 };
 
 /**

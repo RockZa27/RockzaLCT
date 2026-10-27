@@ -11,6 +11,7 @@ import { MonitorPage } from './pages/MonitorPage';
 import { PersistPage } from './pages/PersistPage';
 import { ReceiverPage } from './pages/ReceiverPage';
 import { SenderPage } from './pages/SenderPage';
+import { TaurusPage } from './pages/TaurusPage';
 import { TestDisplayPage } from './pages/TestDisplayPage';
 import { AppProvider, useApp } from './state/AppContext';
 
@@ -36,6 +37,7 @@ function Shell() {
       {page === 'brightness' && <BrightnessPage />}
       {page === 'test' && <TestDisplayPage />}
       {page === 'hseries' && <HSeriesPage />}
+      {page === 'taurus' && <TaurusPage />}
       {page === 'sender' && <SenderPage />}
       {page === 'receiver' && <ReceiverPage />}
       {page === 'layout' && <LayoutPage />}

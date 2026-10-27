@@ -4,12 +4,14 @@ import { monitorEn, monitorTh } from './monitor';
 import { persistEn, persistTh } from './persist';
 import { receiverEn, receiverTh } from './receiver';
 import { senderEn, senderTh } from './sender';
+import { taurusEn, taurusTh } from './taurus';
 
 export type Lang = 'th' | 'en';
 
 const en = {
   ...senderEn,
   ...hseriesEn,
+  ...taurusEn,
   ...receiverEn,
   ...layoutEn,
   ...persistEn,
@@ -98,6 +100,7 @@ export type MessageKey = keyof typeof en;
 const th: Record<MessageKey, string> = {
   ...senderTh,
   ...hseriesTh,
+  ...taurusTh,
   ...receiverTh,
   ...layoutTh,
   ...persistTh,

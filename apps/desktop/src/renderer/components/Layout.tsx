@@ -15,14 +15,16 @@ export type PageId =
   | 'layout'
   | 'persist'
   | 'monitor'
-  | 'hseries';
+  | 'hseries'
+  | 'taurus';
 
 /** `family`: only shown for that controller family while one is connected; absent = both. */
-const NAV: { id: PageId; label: MessageKey; family?: 'novastar' | 'hseries' }[] = [
+const NAV: { id: PageId; label: MessageKey; family?: 'novastar' | 'hseries' | 'taurus' }[] = [
   { id: 'connection', label: 'nav.connection' },
   { id: 'brightness', label: 'nav.brightness' },
   { id: 'test', label: 'nav.test' },
   { id: 'hseries', label: 'nav.hseries', family: 'hseries' },
+  { id: 'taurus', label: 'nav.taurus', family: 'taurus' },
   { id: 'sender', label: 'nav.sender', family: 'novastar' },
   { id: 'receiver', label: 'nav.receiver', family: 'novastar' },
   { id: 'layout', label: 'nav.layout', family: 'novastar' },
@@ -33,7 +35,9 @@ const NAV: { id: PageId; label: MessageKey; family?: 'novastar' | 'hseries' }[] 
 /**
  * Whether a page is offered for the connected controller. Nothing connected: every page. An H
  * series connected: the MCTRL-only pages (sender, receiver, layout, persist, monitor) are hidden
- * and the H series page is shown; an MCTRL/VX connected: the H series page is hidden.
+ * and the H series page is shown; a Taurus connected: the same pages are hidden and the Taurus page
+ * is shown (Brightness stays, Test & Display stays and explains it is not supported); an MCTRL/VX
+ * connected: the H series and Taurus pages are hidden.
  */
 export function isPageVisible(page: PageId, info: ControllerInfo | null): boolean {
   const family = NAV.find((n) => n.id === page)?.family;

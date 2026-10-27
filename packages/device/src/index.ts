@@ -14,3 +14,7 @@ export type { HSeriesBackend, HSeriesBackendOptions } from './hseries/backend.js
 export { HSeriesClient, MAX_RETRIES } from './hseries/client.js';
 export type { HSeriesClientOptions, RequestOptions } from './hseries/client.js';
 export { CMD as HSERIES_CMD, DEFAULT_HSERIES_PORT, decodeReply, encodeRequest } from './hseries/protocol.js';
+export { createTaurusBackend, taurusController, MAX_CARDS_READ_ON_CONNECT } from './taurus/backend.js';
+export type { TaurusBackend, TaurusBackendOptions } from './taurus/backend.js';
+export { TAURUS_DISCOVERY_PORT, broadcastTaurusDiscovery, probeTaurusHost } from './taurus/discovery.js';
+export { mapTaurusError } from './taurus/errors.js';

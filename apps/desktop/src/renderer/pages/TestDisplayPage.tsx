@@ -19,13 +19,20 @@ export function TestDisplayPage() {
   const { t } = useI18n();
   const { connectedId, info, level, pattern, mode, setPattern, setMode } = useApp();
   const hseries = info?.family === 'hseries';
-  const disabled = connectedId === null;
+  const taurus = info?.family === 'taurus';
+  // Taurus has no test-pattern / blackout / freeze command: show everything, disabled, with the reason.
+  const disabled = connectedId === null || taurus;
 
   return (
     <section>
       <h1>{t('test.title')}</h1>
       {disabled && <p className="muted">{t('test.needConnect')}</p>}
       {hseries && <p className="muted">{t('test.hseriesNote')}</p>}
+      {taurus && (
+        <p className="muted" data-testid="taurus-unsupported">
+          {t('test.taurusUnsupported')}
+        </p>
+      )}
       {hseries && level !== 'advanced' && (
         <p className="muted" data-testid="advanced-note">
           {t('hs.advancedOnly')}

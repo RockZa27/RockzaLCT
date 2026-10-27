@@ -13,6 +13,7 @@ import type {
   DeviceErrorCode,
   DiscoveredController,
   DisplayMode,
+  TaurusCredentials,
   TestPattern,
   UserLevel,
 } from '@rockzalct/shared';
@@ -37,6 +38,11 @@ export interface AppState {
   connecting: boolean;
   info: ControllerInfo | null;
   connect(id: string): Promise<void>;
+  /**
+   * Taurus: send the credentials, then connect. 'rejected' = the player refused the login (no toast,
+   * the caller shows it next to the password field); 'failed' = any other error (toast shown).
+   */
+  connectWithPassword(id: string, credentials: TaurusCredentials): Promise<'ok' | 'rejected' | 'failed'>;
   disconnect(): Promise<void>;
   level: UserLevel['level'];
   login(password: string): Promise<boolean>;
@@ -123,6 +129,29 @@ export function AppProvider({ api: rawApi, children }: { api: DeviceApi; childre
     [api, guard],
   );
 
+  const connectWithPassword = useCallback(
+    async (id: string, credentials: TaurusCredentials): Promise<'ok' | 'rejected' | 'failed'> => {
+      setConnecting(true);
+      try {
+        await api.setTaurusCredentials(id, credentials);
+        const result = await api.connect(id);
+        setConnectedId(id);
+        setInfo(result);
+        setPatternState(null);
+        setModeState(null);
+        return 'ok';
+      } catch (e) {
+        const code = decodeError(e).code;
+        if (code === 'PERMISSION') return 'rejected';
+        addToast({ kind: 'error', code });
+        return 'failed';
+      } finally {
+        setConnecting(false);
+      }
+    },
+    [api, addToast],
+  );
+
   const disconnect = useCallback(async () => {
     if (!connectedId) return;
     const ok = await guard(async () => {
@@ -179,6 +208,7 @@ export function AppProvider({ api: rawApi, children }: { api: DeviceApi; childre
     connecting,
     info,
     connect,
+    connectWithPassword,
     disconnect,
     level,
     login,

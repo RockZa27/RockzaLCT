@@ -12,6 +12,7 @@ import {
   type DiscoveredController,
   type DisplayMode,
   type ReceivingCardInfo,
+  type TaurusCredentials,
   type TestPattern,
   type UserLevel,
 } from '@rockzalct/shared';
@@ -25,6 +26,8 @@ import { createReceiverFeature } from './features/receiver.js';
 import { createSenderFeature } from './features/sender.js';
 import { createHSeriesBackend, type HSeriesBackend } from './hseries/backend.js';
 import { DEFAULT_HSERIES_PORT } from './hseries/protocol.js';
+import { createTaurusBackend, type TaurusBackend } from './taurus/backend.js';
+import type { TaurusPlayerInfo } from './taurus/discovery.js';
 
 /** Sending-card address on the bus; the only (first) sender is addressed as 0. */
 const SENDER = 0;
@@ -97,6 +100,15 @@ export interface DeviceServiceOptions {
   hseriesHandshakeTimeoutMs?: number;
   /** Pause between R0118 polls while an H series is still initialising, default 500 ms. */
   hseriesHandshakePollMs?: number;
+  /** Also probe every net host (UDP, library discovery request) for a Taurus player in discover(); default false
+   * (a host that is not a Taurus makes the probe wait out the whole timeout; the desktop app turns it on). */
+  taurusDiscovery?: boolean;
+  /** Also run the library's UDP broadcast discovery for Taurus players in discover(); default false. */
+  taurusUdpDiscovery?: boolean;
+  /** UDP port probed on net hosts for Taurus players, default 16601. */
+  taurusDiscoveryPort?: number;
+  /** Replaces the library's UDP broadcast discovery (tests). */
+  findTaurusPlayers?: (timeoutMs: number) => Promise<TaurusPlayerInfo[]>;
   /** Injection points for tests. */
   findSerialPaths?: () => Promise<string[]>;
   findUdpHosts?: () => Promise<string[]>;
@@ -181,6 +193,14 @@ export function createDeviceService(options: DeviceServiceOptions = {}): DeviceS
     port: hseriesPort,
     handshakeTimeoutMs: options.hseriesHandshakeTimeoutMs,
     handshakePollMs: options.hseriesHandshakePollMs,
+    isAdvanced: () => userLevel.level === 'advanced',
+  });
+
+  // Taurus players (TCP 16606 management protocol) likewise: ids starting with `taurus:`.
+  const taurus: TaurusBackend = createTaurusBackend({
+    timeoutMs,
+    discoveryPort: options.taurusDiscoveryPort,
+    findPlayers: options.findTaurusPlayers,
     isAdvanced: () => userLevel.level === 'advanced',
   });
 
@@ -294,6 +314,7 @@ export function createDeviceService(options: DeviceServiceOptions = {}): DeviceS
 
     const hosts = new Map<string, DiscoveredController>();
     const hTargets = new Map<string, { host: string; port: number }>();
+    const tHosts = new Set<string>();
     for (const entry of opts.netHosts ?? options.netHosts ?? []) {
       const parsed = typeof entry === 'string' ? parseNetHost(entry, netPort) : null;
       if (!parsed) {
@@ -306,6 +327,8 @@ export function createDeviceService(options: DeviceServiceOptions = {}): DeviceS
       // is taken as the H series UDP port.
       const udpPort = parsed.port !== netPort ? parsed.port : hseriesPort;
       hTargets.set(`${parsed.host}:${udpPort}`, { host: parsed.host, port: udpPort });
+      // ...and for a Taurus player (its discovery port is fixed, so only the host part is used).
+      tHosts.add(parsed.host);
     }
     if (options.udpDiscovery) {
       try {
@@ -325,7 +348,8 @@ export function createDeviceService(options: DeviceServiceOptions = {}): DeviceS
     // TCP (MCTRL/VX) and UDP (H series) probes run side by side; a failure of either, for any host,
     // is only recorded and never fails the scan.
     const hProbes = options.hseriesDiscovery === false ? [] : [...hTargets.values()];
-    const [results, hResults] = await Promise.all([
+    const tProbes = options.taurusDiscovery === true ? [...tHosts] : [];
+    const [results, hResults, tResults, tBroadcast] = await Promise.all([
       Promise.all([...hosts.values()].map(async (c) => ((await probe(c, probeTimeout)) ? c : null))),
       Promise.all(
         hProbes.map(async (t) => {
@@ -337,10 +361,32 @@ export function createDeviceService(options: DeviceServiceOptions = {}): DeviceS
           }
         }),
       ),
+      Promise.all(
+        tProbes.map(async (host) => {
+          try {
+            return await taurus.probe(host, probeTimeout);
+          } catch (err) {
+            record(`taurus:${host}`, err);
+            return null;
+          }
+        }),
+      ),
+      options.taurusUdpDiscovery
+        ? taurus.broadcast(probeTimeout).catch((err: unknown) => {
+            record('taurus-udp', err);
+            return [] as DiscoveredController[];
+          })
+        : Promise.resolve([] as DiscoveredController[]),
     ]);
     for (const c of results) if (c) found.set(c.id, c);
     const mctrl = [...found.values()].map(remember);
-    return [...mctrl, ...hResults.filter((c): c is DiscoveredController => c !== null)];
+    const taurusFound = new Map<string, DiscoveredController>();
+    for (const c of [...tResults, ...tBroadcast]) if (c) taurusFound.set(c.id, c);
+    return [
+      ...mctrl,
+      ...hResults.filter((c): c is DiscoveredController => c !== null),
+      ...taurusFound.values(),
+    ];
   }
 
   async function readInfo(id: string, session: SessionLike): Promise<{ info: ControllerInfo; firmware: FirmwareDetails }> {
@@ -480,15 +526,17 @@ export function createDeviceService(options: DeviceServiceOptions = {}): DeviceS
 
   const ctx: FeatureContext = { withSession, userLevel: () => ({ ...userLevel }), timeoutMs };
 
-  /** Routes a core method to the H series back end when `id` is an `hseries:` id. */
+  /** Routes a core method to the H series / Taurus back end by the id prefix. */
   const routed = <A extends unknown[], R>(
     mctrl: (id: string, ...args: A) => Promise<R>,
     h: (id: string, ...args: A) => Promise<R>,
-  ) => (id: string, ...args: A): Promise<R> => (hseries.owns(id) ? h(id, ...args) : mctrl(id, ...args));
+    t: (id: string, ...args: A) => Promise<R>,
+  ) => (id: string, ...args: A): Promise<R> =>
+    hseries.owns(id) ? h(id, ...args) : taurus.owns(id) ? t(id, ...args) : mctrl(id, ...args);
 
   /**
    * MCTRL/VX-only feature methods (sender, receiver, layout, persist, monitor) called with an H
-   * series id reject with INVALID_ARGUMENT instead of failing with NOT_FOUND. Every one of them
+   * series or Taurus id reject with INVALID_ARGUMENT instead of failing with NOT_FOUND. Every one of them
    * takes the controller id as its first argument.
    */
   const mctrlOnly = <T extends object>(feature: T): T => {
@@ -499,7 +547,9 @@ export function createDeviceService(options: DeviceServiceOptions = {}): DeviceS
           ? (id: string, ...args: unknown[]): Promise<unknown> =>
               hseries.owns(id)
                 ? Promise.reject(new DeviceError('INVALID_ARGUMENT', 'not supported on H series'))
-                : (fn as (...a: unknown[]) => Promise<unknown>)(id, ...args)
+                : taurus.owns(id)
+                  ? Promise.reject(new DeviceError('INVALID_ARGUMENT', 'not supported on Taurus'))
+                  : (fn as (...a: unknown[]) => Promise<unknown>)(id, ...args)
           : fn;
     }
     return out as T;
@@ -510,6 +560,12 @@ export function createDeviceService(options: DeviceServiceOptions = {}): DeviceS
       hseries.owns(id)
         ? h(id, ...args)
         : Promise.reject(new DeviceError('INVALID_ARGUMENT', 'only supported on H series controllers'));
+  /** The TaurusApi methods with a non-Taurus id: only `taurus:` ids make sense. */
+  const tOnly = <A extends unknown[], R>(t: (id: string, ...args: A) => Promise<R>) =>
+    (id: string, ...args: A): Promise<R> =>
+      taurus.owns(id)
+        ? t(id, ...args)
+        : Promise.reject(new DeviceError('INVALID_ARGUMENT', 'only supported on Taurus players'));
 
   return {
     ...mctrlOnly(createSenderFeature(ctx)),
@@ -527,13 +583,35 @@ export function createDeviceService(options: DeviceServiceOptions = {}): DeviceS
     ),
     fadeToBlack: hOnly((id, screenId: number, enabled: boolean) => hseries.fadeToBlack(id, screenId, enabled)),
     saveScreenBrightness: hOnly((id, screenId: number) => hseries.saveScreenBrightness(id, screenId)),
+    setTaurusCredentials: tOnly((id, credentials: TaurusCredentials) => taurus.setTaurusCredentials(id, credentials)),
+    getTaurusInfo: tOnly((id) => taurus.getTaurusInfo(id)),
+    getTaurusSyncMode: tOnly((id) => taurus.getTaurusSyncMode(id)),
+    setTaurusSyncMode: tOnly((id, mode: 'synchronous' | 'asynchronous', opts?: { fallbackToInternal?: boolean }) =>
+      taurus.setTaurusSyncMode(id, mode, opts),
+    ),
+    getTaurusVideoSources: tOnly((id) => taurus.getTaurusVideoSources(id)),
+    getTaurusLightSensor: tOnly((id) => taurus.getTaurusLightSensor(id)),
+    readTaurusScreenConfig: tOnly((id) => taurus.readTaurusScreenConfig(id)),
+    saveTaurusBrightness: tOnly((id) => taurus.saveTaurusBrightness(id)),
     discover,
-    connect: routed(connect, (id) => hseries.connect(id)),
-    disconnect: routed(disconnect, (id) => hseries.disconnect(id)),
-    getBrightness: routed(getBrightness, (id) => hseries.getBrightness(id)),
-    setBrightness: routed(setBrightness, (id, value) => hseries.setBrightness(id, value)),
-    setTestPattern: routed(setTestPattern, (id, pattern) => hseries.setTestPattern(id, pattern)),
-    setDisplayMode: routed(setDisplayMode, (id, mode) => hseries.setDisplayMode(id, mode)),
+    connect: routed(connect, (id) => hseries.connect(id), (id) => taurus.connect(id)),
+    disconnect: routed(disconnect, (id) => hseries.disconnect(id), (id) => taurus.disconnect(id)),
+    getBrightness: routed(getBrightness, (id) => hseries.getBrightness(id), (id) => taurus.getBrightness(id)),
+    setBrightness: routed(
+      setBrightness,
+      (id, value) => hseries.setBrightness(id, value),
+      (id, value) => taurus.setBrightness(id, value),
+    ),
+    setTestPattern: routed(
+      setTestPattern,
+      (id, pattern) => hseries.setTestPattern(id, pattern),
+      (id, pattern) => taurus.setTestPattern(id, pattern),
+    ),
+    setDisplayMode: routed(
+      setDisplayMode,
+      (id, mode) => hseries.setDisplayMode(id, mode),
+      (id, mode) => taurus.setDisplayMode(id, mode),
+    ),
     login,
     getUserLevel: () => ({ ...userLevel }),
     getFirmwareDetails(id: string): FirmwareDetails {
@@ -547,6 +625,7 @@ export function createDeviceService(options: DeviceServiceOptions = {}): DeviceS
     async dispose(): Promise<void> {
       await Promise.all([...registry.values()].map(closeSession));
       await hseries.dispose();
+      await taurus.dispose();
     },
   };
 }

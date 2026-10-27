@@ -77,6 +77,7 @@ describe('navigation per controller family', () => {
       'Brightness',
       'Test & Display',
       'H series',
+      'Taurus',
       'Sending card',
       'Receiving card',
       'Screen connection',
