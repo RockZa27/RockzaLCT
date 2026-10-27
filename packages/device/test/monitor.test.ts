@@ -608,6 +608,9 @@ function scripted(script: Script): SessionLike {
     ReadAllBrightnessInfo: async () => Buffer.from([255, 255, 128, 0, 255]),
     SetGlobalBrightness: async () => undefined,
     SetRGBBrightness: async () => undefined,
+    SetRedBrightness: async () => undefined,
+    SetGreenBrightness: async () => undefined,
+    SetBlueBrightness: async () => undefined,
     SetSelfTestMode: async () => undefined,
     SetKillMode: async () => undefined,
     SetLockMode: async () => undefined,
@@ -749,5 +752,22 @@ describe('readMonitorSnapshot error handling (scripted session)', () => {
     });
     await svc.readMonitorSnapshot(id, { cards: [], functionCardAddress: 7 });
     expect(seen).toEqual([7]);
+  });
+});
+
+describe('offline cards keep their alerts (review item 6)', () => {
+  it('a hot card going offline does not report its temperature alert as cleared; a real clear needs online + below threshold', () => {
+    const hot = evaluateSnapshot(snap([card(0, 0, { temperatureRaw: 90 })]));
+    const off = evaluateSnapshot(snap([card(0, 0, { state: 'offline' })]), DEFAULT_MONITOR_THRESHOLDS, hot);
+    expect(diffAlerts(hot, off).map((t) => [t.type, t.alert.kind])).toEqual([['raised', 'card-offline']]);
+    expect(off.find((a) => a.kind === 'temperature-high')).toMatchObject({ stale: true, severity: 'critical' });
+    // even without the carry-over argument (callers holding only the old list) it is not "cleared"
+    const offBare = evaluateSnapshot(snap([card(0, 0, { state: 'offline' })]));
+    expect(diffAlerts(hot, offBare).some((t) => t.type === 'cleared')).toBe(false);
+    // back online and cool: now it really clears
+    const cool = evaluateSnapshot(snap([card(0, 0, { temperatureRaw: 40 })]));
+    const kinds = diffAlerts(off, cool).map((t) => [t.type, t.alert.kind]);
+    expect(kinds).toContainEqual(['cleared', 'temperature-high']);
+    expect(kinds).toContainEqual(['cleared', 'card-offline']);
   });
 });

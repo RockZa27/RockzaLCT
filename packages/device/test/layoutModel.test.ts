@@ -454,3 +454,16 @@ describe('regionOfScreen', () => {
     expect(regionOfScreen(createLayoutScreen(3, 5, 1, 1))).toEqual({ row0: 0, col0: 0, row1: 2, col1: 4 });
   });
 });
+
+describe('validateLayout never lets broadcast values through (review item 1)', () => {
+  it('rejects port 255/256 and more cards than the 0xFFFF broadcast index allows, even without options', () => {
+    const screen = createLayoutScreen(1, 1, 128, 128);
+    for (const port of [255, 256, 1000]) {
+      const issues = validateLayout({ screen, ports: [{ port, cabinets: [{ row: 0, col: 0 }] }] });
+      expect(issues.some((i) => i.code === 'port-invalid' && i.severity === 'error')).toBe(true);
+    }
+    expect(validateLayout({ screen, ports: [{ port: 254, cabinets: [{ row: 0, col: 0 }] }] }).some((i) => i.code === 'port-invalid')).toBe(false);
+    const many = Array.from({ length: 0x10000 }, () => ({ row: 0, col: 0 }));
+    expect(validateLayout({ screen, ports: [{ port: 0, cabinets: many }] }).some((i) => i.code === 'port-too-many-cards')).toBe(true);
+  });
+});

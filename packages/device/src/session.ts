@@ -20,6 +20,9 @@ export interface SessionLike {
     broadcast: boolean,
     value: number,
   ): Promise<void>;
+  SetRedBrightness(addr: number, portAddr: number, scanBoardAddr: number, broadcast: boolean, value: number): Promise<void>;
+  SetGreenBrightness(addr: number, portAddr: number, scanBoardAddr: number, broadcast: boolean, value: number): Promise<void>;
+  SetBlueBrightness(addr: number, portAddr: number, scanBoardAddr: number, broadcast: boolean, value: number): Promise<void>;
   SetRGBBrightness(
     addr: number,
     portAddr: number,

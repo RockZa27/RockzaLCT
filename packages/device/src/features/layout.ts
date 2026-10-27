@@ -31,6 +31,7 @@ import {
   layoutHasErrors,
   parseLayoutModel,
   planLayoutWrite,
+  SENDER_MAX_PORTS,
   validateLayout,
   type LayoutApi,
   type ScannerXyOrder,
@@ -47,6 +48,11 @@ import { currentOverrides, type FeatureContext } from './context.js';
 const SENDER = 0;
 const ALL_PORTS = 0xff;
 const ALL_CARDS = 0xffff;
+/**
+ * Receiving cards per port the sender can address: the card position block is
+ * 0x03000000 + 4096*port + 4*card (see ReadEthernetPortScannerXY above), i.e. 1024 cards per port.
+ */
+const MAX_CARDS_PER_PORT = 1024;
 /** `cardType` argument of ReadNumberOfCardOrScanBoardInPort: 0 = receiving card. */
 const CARD_TYPE_RECEIVING = 0;
 
@@ -128,7 +134,13 @@ export function createLayoutFeature(ctx: FeatureContext): LayoutApi {
   const checkedModel = (raw: unknown, portCapacity?: number): LayoutModel => {
     const model = parseLayoutModel(raw);
     if (!model) throw new DeviceError('INVALID_ARGUMENT', 'layout has the wrong shape');
-    const issues = validateLayout(model, portCapacity === undefined ? {} : { portCapacity });
+    const issues = validateLayout(model, {
+      // Ports 0..SENDER_MAX_PORTS-1 only (the real controller may have fewer; the card-count check
+      // against the hardware catches that). Never lets 0xFF (all ports) through as a real port.
+      maxPorts: SENDER_MAX_PORTS,
+      maxCardsPerPort: MAX_CARDS_PER_PORT,
+      ...(portCapacity === undefined ? {} : { portCapacity }),
+    });
     const errors = issues.filter((i) => i.severity === 'error');
     if (layoutHasErrors(issues)) {
       throw new DeviceError(

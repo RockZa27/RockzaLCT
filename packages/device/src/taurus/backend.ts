@@ -210,11 +210,12 @@ export function createTaurusBackend(options: TaurusBackendOptions): TaurusBacken
 
   async function connect(id: string): Promise<ControllerInfo> {
     const entry = lookup(id);
+    // Credentials are single-use: forget them at the start of every connect(), including when the
+    // client is already live and this call is a no-op for login.
+    const credentials = entry.credentials;
+    entry.credentials = undefined;
     if (!entry.client || entry.client.connection.closed) {
       entry.client = undefined;
-      // Credentials are single-use: forget them whatever happens next.
-      const credentials = entry.credentials;
-      entry.credentials = undefined;
       if (!credentials) {
         throw new DeviceError('PERMISSION', 'a Taurus password is required: call setTaurusCredentials before connect');
       }

@@ -54,6 +54,38 @@ export const CMD = {
 
 export type HSeriesCmd = (typeof CMD)[keyof typeof CMD];
 
+/**
+ * Commands that must NOT be re-sent after a silent attempt: a lost reply does not mean the device did
+ * not execute the command, and executing them twice has a visible effect.
+ *  - W0605 load/play preset (actions.js:131-134): a second play restarts the preset (re-triggers
+ *    its transition) and can override a change made in between.
+ *  - W0506 layer source switch (actions.js:731-741): a second switch re-applies the source and can
+ *    clobber a layer change the operator made after the first one.
+ * Everything else is either a read (R*) or writes an explicit state (W0410 brightness value, W0409
+ * FTB on/off, W040A freeze on/off, W0700 blackout 1/0, W0303 test pattern id, W0417 save), so
+ * repeating it converges to the same state and retries are safe.
+ */
+export const NON_IDEMPOTENT_CMDS: ReadonlySet<string> = new Set([CMD.loadPreset, CMD.sourceSwitch]);
+
+/**
+ * The screen id a reply to `req` should echo in its `screenId` field, if any. Reads address the
+ * screen with `param1` (R0401/R0500/R0600, request.js:3-79), writes with `screenId`. The reference
+ * module reads `screenId` from R0401 replies (parseScreenDetails); the simulator echoes it on
+ * R0401/R0500/R0600. Whether real firmware echoes it on every reply is UNVERIFIED, so a reply
+ * WITHOUT the field is still accepted; a reply WITH a different id is never ours.
+ */
+export function expectedReplyScreenId(req: HSeriesRequest): number | undefined {
+  const b = req.body;
+  if (typeof b['screenId'] === 'number') return b['screenId'];
+  if (
+    (req.cmd === CMD.screenDetails || req.cmd === CMD.layerList || req.cmd === CMD.presetList) &&
+    typeof b['param1'] === 'number'
+  ) {
+    return b['param1'];
+  }
+  return undefined;
+}
+
 /** Default UDP port (main.js:59 DEFAULT_CONFIG.port = '6000'; HELP.md:10). */
 export const DEFAULT_HSERIES_PORT = 6000;
 

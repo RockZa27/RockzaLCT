@@ -386,7 +386,7 @@ describe('service: permissions, validation and call-time reading', () => {
     expect(calls.filter((c) => c[0] === 'SetParameterStore2SpiFlash')).toEqual([['SetParameterStore2SpiFlash', 0, 0, 1, false, 99]]);
   });
 
-  it('notifies the persistence hook with the new values; a throwing hook does not break the change', async () => {
+  it('notifies the persistence hook; a throwing/rejecting hook still applies for the session but rejects with PROTOCOL (item 8)', async () => {
     const seen: HardwareOverrides[] = [];
     const { svc } = await open({
       onHardwareOverridesChange: (v) => {
@@ -395,11 +395,22 @@ describe('service: permissions, validation and call-time reading', () => {
       },
     });
     await svc.login('admin');
-    const after = await svc.setHardwareOverrides({ lockOn: 2 });
-    expect(after.lockOn).toBe(2);
-    expect((await svc.getHardwareOverrides()).lockOn).toBe(2);
-    await svc.resetHardwareOverrides();
+    const err = await svc.setHardwareOverrides({ lockOn: 2 }).then(() => null, (e: unknown) => e as DeviceError);
+    expect(err).toBeInstanceOf(DeviceError);
+    expect(err!.code).toBe('PROTOCOL');
+    expect(err!.message).toBe('applied for this session only; could not be saved: disk full');
+    expect((await svc.getHardwareOverrides()).lockOn).toBe(2); // still in effect
+    await svc.resetHardwareOverrides(); // hook no longer throws
     expect(seen.map((v) => v.lockOn)).toEqual([2, 1]);
+  });
+
+  it('a rejecting async hook on reset also applies then rejects (item 8)', async () => {
+    const { svc } = await open({ onHardwareOverridesChange: async () => { throw new Error('EACCES'); } });
+    await svc.login('admin');
+    await svc.setHardwareOverrides({ lockOn: 2 }).catch(() => undefined);
+    const msg = await svc.resetHardwareOverrides().then(() => '', (e: Error) => e.message);
+    expect(msg).toBe('applied for this session only; could not be saved: EACCES');
+    expect((await svc.getHardwareOverrides()).lockOn).toBe(1);
   });
 
   it('constructor options become the initial values (legacy displayModeValues, then hardwareOverrides on top)', async () => {

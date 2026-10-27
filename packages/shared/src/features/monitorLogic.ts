@@ -121,7 +121,16 @@ export interface MonitorAlert {
   threshold?: number;
   /** Device error text for offline / error alerts. */
   detail?: string;
+  /**
+   * True when the card this alert belongs to is offline/in error, so the reading is unknown: the
+   * alert is carried over from the last time the card answered, not freshly measured.
+   */
+  stale?: boolean;
 }
+
+/** Alert keys of a card whose reading disappears while the card is offline / in error. */
+const isCardReadingAlert = (key: string): boolean => /^card:\d+:\d+:(temperature|voltage)$/.test(key);
+const cardStateKeyOf = (key: string): string => key.slice(0, key.lastIndexOf(':')) + ':state';
 
 export const severityRank = (s: AlertSeverity): number => (s === 'critical' ? 2 : 1);
 
@@ -131,6 +140,7 @@ export const cardKey = (portIndex: number, cardIndex: number): string => `card:$
 export function evaluateSnapshot(
   snapshot: MonitorSnapshot,
   thresholds: MonitorThresholds = DEFAULT_MONITOR_THRESHOLDS,
+  previous: readonly MonitorAlert[] = [],
 ): MonitorAlert[] {
   const alerts: MonitorAlert[] = [];
 
@@ -159,15 +169,25 @@ export function evaluateSnapshot(
     }
   }
 
+  // An offline / errored card gives no reading, so its earlier temperature / voltage alerts are
+  // kept (marked stale) instead of being reported as cleared. A real clear needs the card back
+  // online and inside the limits.
+  const carryStale = (base: string): void => {
+    for (const a of previous) {
+      if (isCardReadingAlert(a.key) && a.key.startsWith(`${base}:`)) alerts.push({ ...a, stale: true });
+    }
+  };
   for (const c of snapshot.cards) {
     const base = cardKey(c.portIndex, c.cardIndex);
     const where = { portIndex: c.portIndex, cardIndex: c.cardIndex };
     if (c.state === 'offline') {
       alerts.push({ key: `${base}:state`, kind: 'card-offline', severity: 'critical', ...where, ...(c.error ? { detail: c.error } : {}) });
+      carryStale(base);
       continue;
     }
     if (c.state === 'error') {
       alerts.push({ key: `${base}:state`, kind: 'card-error', severity: 'warning', ...where, ...(c.error ? { detail: c.error } : {}) });
+      carryStale(base);
       continue;
     }
     const t = c.temperatureRaw;
@@ -227,7 +247,12 @@ export function diffAlerts(previous: readonly MonitorAlert[], next: readonly Mon
     else if (severityRank(alert.severity) > severityRank(old.severity)) out.push({ type: 'escalated', alert, previous: old });
     else if (severityRank(alert.severity) < severityRank(old.severity)) out.push({ type: 'relaxed', alert, previous: old });
   }
-  for (const [key, alert] of before) if (!after.has(key)) out.push({ type: 'cleared', alert });
+  for (const [key, alert] of before) {
+    if (after.has(key)) continue;
+    // The card went offline / into error: its reading is unknown, not back in range.
+    if (isCardReadingAlert(key) && after.has(cardStateKeyOf(key))) continue;
+    out.push({ type: 'cleared', alert });
+  }
   return out.sort((a, b) => (a.alert.key < b.alert.key ? -1 : a.alert.key > b.alert.key ? 1 : 0));
 }
 
