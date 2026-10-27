@@ -40,7 +40,7 @@ export function UploadSection({
 }: {
   card: CardRef | null;
   onBusy(busy: boolean): void;
-  onBackedUp(card: CardRef): void;
+  onBackedUp(card: CardRef, range: { offset: number; length: number }): void;
 }) {
   const { t } = useI18n();
   const { api, connectedId, info, level } = useApp();
@@ -117,7 +117,7 @@ export function UploadSection({
             }),
           ),
         );
-        onBackedUp(card);
+        onBackedUp(card, { offset, length: read.data.length });
         done.push(t('cal.up.backupSaved', { file: name }));
         setNotes([...done]);
       }

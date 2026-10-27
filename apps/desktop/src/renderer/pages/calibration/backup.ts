@@ -1,4 +1,5 @@
 import {
+  COEFFICIENT_REGION,
   buildCoefficientFile,
   coefficientIoFromApi,
   downloadCoefficients,
@@ -8,6 +9,10 @@ import {
   type CoefficientTransferResult,
 } from '@rockzalct/shared';
 import { coefficientFileName, downloadTextFile } from './fileIo';
+
+/** True only for a backup of the card's entire coefficient region — the only kind that unlocks store / erase. */
+export const isFullCoefficientBackup = (range: { offset: number; length: number }): boolean =>
+  range.offset === 0 && range.length === COEFFICIENT_REGION.sizeBytes;
 
 /**
  * Read a card's coefficients and, only when the whole range was read, trigger the file download.

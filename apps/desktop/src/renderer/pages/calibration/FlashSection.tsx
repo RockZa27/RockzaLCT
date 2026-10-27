@@ -26,7 +26,7 @@ export function FlashSection({
 }: {
   card: CardRef | null;
   backedUp: boolean;
-  onBackedUp(card: CardRef): void;
+  onBackedUp(card: CardRef, range: { offset: number; length: number }): void;
   onBusy(busy: boolean): void;
 }) {
   const { t } = useI18n();
@@ -78,7 +78,7 @@ export function FlashSection({
     try {
       const { result, fileName } = await backupCard(api, connectedId, info, card, 0, COEFFICIENT_REGION.sizeBytes, options);
       if (result.ok && fileName) {
-        onBackedUp(card);
+        onBackedUp(card, { offset: 0, length: COEFFICIENT_REGION.sizeBytes });
         setMessage(t('cal.dl.done', { bytes: COEFFICIENT_REGION.sizeBytes, file: fileName }));
       } else if (result.failed) {
         setMessage(t('cal.dl.failed', { offset: result.failed.offset, reason: failureReason(t, result.failed) }));

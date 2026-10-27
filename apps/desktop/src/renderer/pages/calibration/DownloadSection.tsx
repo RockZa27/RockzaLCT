@@ -19,7 +19,7 @@ export function DownloadSection({
 }: {
   card: CardRef | null;
   onBusy(busy: boolean): void;
-  onBackedUp(card: CardRef): void;
+  onBackedUp(card: CardRef, range: { offset: number; length: number }): void;
 }) {
   const { t } = useI18n();
   const { api, connectedId, info } = useApp();
@@ -46,7 +46,7 @@ export function DownloadSection({
     try {
       const { result: res, fileName } = await backupCard(api, connectedId, info, card, off, len, options);
       if (res.ok && fileName) {
-        onBackedUp(card);
+        onBackedUp(card, { offset: off, length: len });
         setMessage(t('cal.dl.done', { bytes: len, file: fileName }));
       } else if (res.failed) {
         setMessage(t('cal.dl.failed', { offset: res.failed.offset, reason: failureReason(t, res.failed) }));

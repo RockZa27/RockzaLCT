@@ -1,6 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  COEFFICIENT_REGION,
   DeviceError,
   base64ToBytes,
   buildCoefficientFile,
@@ -32,7 +33,7 @@ const STATE: CalibrationCardState = {
 
 /** A fake API backed by a byte array so uploads and downloads can be checked end to end. */
 function fakeCalibration(over: Parameters<typeof makeFakeApi>[0] = {}) {
-  const memory = new Uint8Array(4096);
+  const memory = new Uint8Array(COEFFICIENT_REGION.sizeBytes);
   memory.set(pattern(2048, 2));
   const api = makeFakeApi({
     getCalibrationState: vi.fn(async (_id: string, port: number, card: number) => ({ ...STATE, portIndex: port, cardIndex: card })),
@@ -406,11 +407,13 @@ describe('CalibrationPage: upload', () => {
   });
 });
 
-const backUpSelectedCard = async (user: ReturnType<typeof renderApp>['user'], bytes = 300) => {
+// Only a backup of the whole coefficient region unlocks store / erase.
+const backUpSelectedCard = async (user: ReturnType<typeof renderApp>['user'], bytes: number = COEFFICIENT_REGION.sizeBytes) => {
   await user.clear(screen.getByLabelText('Length (bytes)'));
   await user.type(screen.getByLabelText('Length (bytes)'), String(bytes));
   await user.click(screen.getByRole('button', { name: 'Download from card' }));
-  await waitFor(() => expect(screen.getByTestId('cal-dl-result')).toHaveTextContent('Saved'));
+  // a whole-region backup is 8192 block reads
+  await waitFor(() => expect(screen.getByTestId('cal-dl-result')).toHaveTextContent('Saved'), { timeout: 30_000 });
 };
 
 describe('CalibrationPage: flash', () => {
@@ -450,15 +453,22 @@ describe('CalibrationPage: flash', () => {
     await waitFor(() => expect(screen.getByTestId('cal-dl-result')).toHaveTextContent('Reading failed'));
     expect(screen.getByRole('button', { name: 'Erase flash…' })).toBeDisabled();
 
-    // a completed download of card 1 unlocks it
-    await backUpSelectedCard(user);
+    // a completed but PARTIAL download of card 1 saves a file yet does not unlock: erase wipes everything
+    await backUpSelectedCard(user, 300);
     expect(downloads).toHaveLength(2);
+    expect(screen.getByTestId('cal-needs-backup')).toHaveTextContent('port 1 / card 1');
+    expect(screen.getByRole('button', { name: 'Erase flash…' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Store to flash…' })).toBeDisabled();
+
+    // a completed download of card 1's whole region unlocks it
+    await backUpSelectedCard(user);
+    expect(downloads).toHaveLength(3);
     expect(screen.queryByTestId('cal-needs-backup')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Store to flash…' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Erase flash…' })).toBeEnabled();
     expect(api.saveCoefficientsToFlash).not.toHaveBeenCalled();
     expect(api.eraseCoefficientsInFlash).not.toHaveBeenCalled();
-  });
+  }, 60_000);
 
   it('offers a Back up now shortcut that unlocks the card once the file was saved', async () => {
     const downloads = stubDownloads();
@@ -502,7 +512,7 @@ describe('CalibrationPage: flash', () => {
     expect(dialog.getByText(/flash of port 2 \/ card 1 \(Multi-layer\)/)).toBeInTheDocument();
     await user.click(dialog.getByRole('button', { name: 'Yes, continue' }));
     await waitFor(() => expect(api.reloadCoefficientsFromFlash).toHaveBeenCalledWith('serial:COM9', 1, 0, 'multi-layer'));
-  });
+  }, 60_000);
 
   it('erase needs the card position typed exactly', async () => {
     stubDownloads();
@@ -535,5 +545,5 @@ describe('CalibrationPage: flash', () => {
     expect(dialog.getByRole('button', { name: 'Yes, continue' })).toBeEnabled();
     await user.click(dialog.getByRole('button', { name: 'Yes, continue' }));
     await waitFor(() => expect(api.eraseCoefficientsInFlash).toHaveBeenCalledWith('serial:COM9', 1, 0));
-  });
+  }, 60_000);
 });

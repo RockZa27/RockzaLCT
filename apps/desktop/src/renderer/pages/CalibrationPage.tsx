@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { isFullCoefficientBackup } from './calibration/backup';
 import { useI18n } from '../i18n/I18nProvider';
 import { useApp } from '../state/AppContext';
 import { DownloadSection } from './calibration/DownloadSection';
@@ -16,12 +17,13 @@ export function CalibrationPage() {
   // The card cannot be changed while a transfer runs: it would hide the progress and the cancel button.
   const [busy, setBusy] = useState({ dl: false, up: false, fl: false });
   const transferring = busy.dl || busy.up || busy.fl;
-  // Cards whose coefficients were downloaded to a file in this session ("port:card"); unlocks store / erase of that card only.
+  // Cards whose WHOLE coefficient region was downloaded to a file in this session ("port:card"); unlocks
+  // store / erase of that card only. Erase wipes the whole flash copy, so a partial download must not count.
   const [backedUp, setBackedUp] = useState<ReadonlySet<string>>(() => new Set());
-  const onBackedUp = useCallback(
-    (c: { portIndex: number; cardIndex: number }) => setBackedUp((s) => new Set(s).add(`${c.portIndex}:${c.cardIndex}`)),
-    [],
-  );
+  const onBackedUp = useCallback((c: { portIndex: number; cardIndex: number }, range: { offset: number; length: number }) => {
+    if (!isFullCoefficientBackup(range)) return;
+    setBackedUp((s) => new Set(s).add(`${c.portIndex}:${c.cardIndex}`));
+  }, []);
   const onFlBusy = useCallback((b: boolean) => setBusy((s) => (s.fl === b ? s : { ...s, fl: b })), []);
   const onDlBusy = useCallback((b: boolean) => setBusy((s) => (s.dl === b ? s : { ...s, dl: b })), []);
   const onUpBusy = useCallback((b: boolean) => setBusy((s) => (s.up === b ? s : { ...s, up: b })), []);
