@@ -4,6 +4,7 @@ import { layoutEn, layoutTh } from './layout';
 import { monitorEn, monitorTh } from './monitor';
 import { calibrationEn, calibrationTh } from './calibration';
 import { maintenanceEn, maintenanceTh } from './maintenance';
+import { novaImportEn, novaImportTh } from './novaImport';
 import { persistEn, persistTh } from './persist';
 import { receiverEn, receiverTh } from './receiver';
 import { senderEn, senderTh } from './sender';
@@ -24,6 +25,7 @@ const en = {
   ...calibrationEn,
   ...maintenanceEn,
   ...advancedEn,
+  ...novaImportEn,
   'app.name': 'RockzaLCT',
   'nav.connection': 'Connection',
   'nav.brightness': 'Brightness',
@@ -121,6 +123,7 @@ const th: Record<MessageKey, string> = {
   ...calibrationTh,
   ...maintenanceTh,
   ...advancedTh,
+  ...novaImportTh,
   'app.name': 'RockzaLCT',
   'nav.connection': 'การเชื่อมต่อ',
   'nav.brightness': 'ความสว่าง',

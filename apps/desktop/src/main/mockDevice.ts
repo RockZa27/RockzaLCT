@@ -14,6 +14,7 @@ import { createMockMonitor } from './mock/monitor';
 import { createMockCalibration } from './mock/calibration';
 import { createMockMaintenance } from './mock/maintenance';
 import { createMockOverrides } from './mock/overrides';
+import { createMockNovaImport } from './mock/novaImport';
 import { createMockPersist } from './mock/persist';
 import { createMockReceiver, type MockCardStore } from './mock/receiver';
 import { createMockSmartSettings } from './mock/smartSettings';
@@ -215,6 +216,7 @@ export function createMockDevice(options: MockDeviceOptions = {}): DeviceApi {
     ...createMockCalibration(ctx),
     ...createMockMaintenance(ctx),
     ...createMockOverrides(ctx),
+    ...createMockNovaImport(ctx),
     ...hs.api,
     ...ts.api,
     async discover(opts) {

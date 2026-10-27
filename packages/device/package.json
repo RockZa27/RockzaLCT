@@ -20,9 +20,11 @@
     "@novastar/codec": "^2.2.3",
     "@novastar/native": "^2.5.1",
     "@novastar/net": "^2.2.3",
+    "@novastar/screen": "2.5.2",
     "@novastar/serial": "^2.2.1",
     "@novastar/taurus": "0.4.1",
-    "@rockzalct/shared": "workspace:*"
+    "@rockzalct/shared": "workspace:*",
+    "fast-xml-parser": "^5.11.2"
   },
   "devDependencies": {
     "@rockzalct/simulator": "workspace:*"

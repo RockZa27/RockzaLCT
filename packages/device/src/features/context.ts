@@ -8,6 +8,12 @@ export interface FeatureContext {
    * errors to DeviceError. Cast the session to add the @novastar/native methods your feature imports.
    */
   withSession<T>(id: string, fn: (session: SessionLike) => Promise<T>): Promise<T>;
+  /**
+   * Like withSession, but while `fn` runs every other withSession call for the same controller is
+   * refused (PROTOCOL, "busy"), and a second exclusive run is refused too. Optional: a context
+   * without it just runs `fn` like withSession.
+   */
+  withExclusiveSession?<T>(id: string, fn: (session: SessionLike) => Promise<T>): Promise<T>;
   userLevel(): UserLevel;
   timeoutMs: number;
   /**

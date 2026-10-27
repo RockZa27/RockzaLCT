@@ -18,3 +18,7 @@ export { createTaurusBackend, taurusController, MAX_CARDS_READ_ON_CONNECT } from
 export type { TaurusBackend, TaurusBackendOptions } from './taurus/backend.js';
 export { TAURUS_DISCOVERY_PORT, broadcastTaurusDiscovery, probeTaurusHost } from './taurus/discovery.js';
 export { mapTaurusError } from './taurus/errors.js';
+export { createNovaImportFeature, SCANNER_BUSY_ADDRESS } from './features/novaImport.js';
+export type { NovaImportOptions } from './features/novaImport.js';
+export { parseRcfgx, parseScr, knownAddressName, loadScreenLib, readZip } from './features/novaImportParse.js';
+export type { ParsedRcfgx } from './features/novaImportParse.js';

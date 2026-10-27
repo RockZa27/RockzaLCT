@@ -75,6 +75,7 @@ import type { TaurusApi } from './features/taurus.js';
 import type { CalibrationApi } from './features/calibration.js';
 import type { MaintenanceApi } from './features/maintenance.js';
 import type { OverridesApi } from './features/overrides.js';
+import type { NovaImportApi } from './features/novaImport.js';
 
 export * from './features/sender.js';
 export * from './features/receiver.js';
@@ -87,9 +88,10 @@ export * from './features/taurus.js';
 export * from './features/calibration.js';
 export * from './features/maintenance.js';
 export * from './features/overrides.js';
+export * from './features/novaImport.js';
 
 /** Operations exposed to the renderer over IPC. All methods may reject with DeviceError. */
-export interface DeviceApi extends SenderApi, ReceiverApi, SmartSettingsApi, LayoutApi, PersistApi, MonitorApi, HSeriesApi, TaurusApi, CalibrationApi, MaintenanceApi, OverridesApi {
+export interface DeviceApi extends SenderApi, ReceiverApi, SmartSettingsApi, LayoutApi, PersistApi, MonitorApi, HSeriesApi, TaurusApi, CalibrationApi, MaintenanceApi, OverridesApi, NovaImportApi {
   discover(options?: { netHosts?: string[]; timeoutMs?: number }): Promise<DiscoveredController[]>;
   connect(id: string): Promise<ControllerInfo>;
   disconnect(id: string): Promise<void>;

@@ -83,6 +83,7 @@ describe('navigation per controller family', () => {
       'Smart Settings',
       'Screen connection',
       'Save & load',
+      'Import NovaLCT file',
       'Monitoring',
       'Calibration',
       'Function card & firmware',
