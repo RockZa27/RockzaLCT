@@ -124,7 +124,7 @@ export function MonitorPage() {
 
   const last = session.history.length ? session.history[session.history.length - 1]! : undefined;
   // Evaluated on every render so a threshold change shows immediately.
-  const alerts = useMemo(() => (last ? evaluateSnapshot(last, settings.thresholds) : []), [last, settings.thresholds]);
+  const alerts = useMemo(() => (last ? evaluateSnapshot(last, settings.thresholds, session.alerts) : []), [last, settings.thresholds, session.alerts]);
   const healthOf = useCallback((c: MonitorCardReading): CardHealth => cardHealth(c, alerts), [alerts]);
 
   const counts = useMemo(() => {

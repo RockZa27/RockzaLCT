@@ -32,7 +32,8 @@ export const getSession = (id: string | null): MonitorSession => (id ? (sessions
 /** Add a snapshot: record it, diff its alerts against the previous snapshot's and log the changes. */
 export function ingest(id: string, snapshot: MonitorSnapshot, thresholds: MonitorThresholds): MonitorSession {
   const prev = getSession(id);
-  const alerts = evaluateSnapshot(snapshot, thresholds);
+  // Previous alerts let an offline card keep its last alerts (marked stale) instead of clearing them.
+  const alerts = evaluateSnapshot(snapshot, thresholds, prev.alerts);
   const events = toAlertEvents(diffAlerts(prev.alerts, alerts), snapshot);
   const next: MonitorSession = {
     history: appendCapped(prev.history, [snapshot], SNAPSHOT_HISTORY_CAP),
