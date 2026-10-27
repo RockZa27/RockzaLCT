@@ -6,6 +6,8 @@ import type { Lang } from './i18n/dictionary';
 import { BrightnessPage } from './pages/BrightnessPage';
 import { ConnectionPage } from './pages/ConnectionPage';
 import { LayoutPage } from './pages/LayoutPage';
+import { MonitorPage } from './pages/MonitorPage';
+import { PersistPage } from './pages/PersistPage';
 import { ReceiverPage } from './pages/ReceiverPage';
 import { SenderPage } from './pages/SenderPage';
 import { TestDisplayPage } from './pages/TestDisplayPage';
@@ -24,6 +26,8 @@ export function App({ api, initialLang }: { api: DeviceApi; initialLang?: Lang }
           {page === 'sender' && <SenderPage />}
           {page === 'receiver' && <ReceiverPage />}
           {page === 'layout' && <LayoutPage />}
+          {page === 'persist' && <PersistPage />}
+          {page === 'monitor' && <MonitorPage />}
         </Layout>
       </AppProvider>
     </I18nProvider>

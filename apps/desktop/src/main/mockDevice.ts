@@ -9,6 +9,8 @@ import {
 } from '@rockzalct/shared';
 import type { MockContext } from './mock/context';
 import { createMockLayout } from './mock/layout';
+import { createMockMonitor } from './mock/monitor';
+import { createMockPersist } from './mock/persist';
 import { createMockReceiver } from './mock/receiver';
 import { createMockSender } from './mock/sender';
 
@@ -130,6 +132,8 @@ export function createMockDevice(options: MockDeviceOptions = {}): DeviceApi {
     ...createMockSender(ctx),
     ...createMockReceiver(ctx),
     ...createMockLayout(ctx),
+    ...createMockPersist(ctx),
+    ...createMockMonitor(ctx),
     async discover(opts) {
       await delay();
       const hosts = opts?.netHosts?.map((h) => h.trim()).filter(Boolean) ?? [];

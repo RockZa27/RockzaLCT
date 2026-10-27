@@ -5,7 +5,7 @@ import { useApp } from '../state/AppContext';
 import { LoginModal } from './LoginModal';
 import { Toasts } from './Toasts';
 
-export type PageId = 'connection' | 'brightness' | 'test' | 'sender' | 'receiver' | 'layout';
+export type PageId = 'connection' | 'brightness' | 'test' | 'sender' | 'receiver' | 'layout' | 'persist' | 'monitor';
 
 const NAV: { id: PageId; label: MessageKey }[] = [
   { id: 'connection', label: 'nav.connection' },
@@ -14,6 +14,8 @@ const NAV: { id: PageId; label: MessageKey }[] = [
   { id: 'sender', label: 'nav.sender' },
   { id: 'receiver', label: 'nav.receiver' },
   { id: 'layout', label: 'nav.layout' },
+  { id: 'persist', label: 'nav.persist' },
+  { id: 'monitor', label: 'nav.monitor' },
 ];
 
 export function Layout({

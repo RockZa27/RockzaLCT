@@ -1,4 +1,6 @@
 import { layoutEn, layoutTh } from './layout';
+import { monitorEn, monitorTh } from './monitor';
+import { persistEn, persistTh } from './persist';
 import { receiverEn, receiverTh } from './receiver';
 import { senderEn, senderTh } from './sender';
 
@@ -8,6 +10,8 @@ const en = {
   ...senderEn,
   ...receiverEn,
   ...layoutEn,
+  ...persistEn,
+  ...monitorEn,
   'app.name': 'RockzaLCT',
   'nav.connection': 'Connection',
   'nav.brightness': 'Brightness',
@@ -93,6 +97,8 @@ const th: Record<MessageKey, string> = {
   ...senderTh,
   ...receiverTh,
   ...layoutTh,
+  ...persistTh,
+  ...monitorTh,
   'app.name': 'RockzaLCT',
   'nav.connection': 'การเชื่อมต่อ',
   'nav.brightness': 'ความสว่าง',

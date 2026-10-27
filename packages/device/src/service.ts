@@ -19,6 +19,8 @@ import { createDefaultSessionFactory, DEFAULT_NET_PORT } from './factories.js';
 import type { SessionFactory, SessionLike } from './session.js';
 import type { FeatureContext } from './features/context.js';
 import { createLayoutFeature } from './features/layout.js';
+import { createMonitorFeature } from './features/monitor.js';
+import { createPersistFeature } from './features/persist.js';
 import { createReceiverFeature } from './features/receiver.js';
 import { createSenderFeature } from './features/sender.js';
 
@@ -440,6 +442,8 @@ export function createDeviceService(options: DeviceServiceOptions = {}): DeviceS
     ...createSenderFeature(ctx),
     ...createReceiverFeature(ctx),
     ...createLayoutFeature(ctx),
+    ...createPersistFeature(ctx),
+    ...createMonitorFeature(ctx),
     discover,
     connect,
     disconnect,
