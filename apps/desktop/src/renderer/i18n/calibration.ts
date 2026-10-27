@@ -109,6 +109,10 @@ export const calibrationEn = {
   'cal.flash.eraseUnverified':
     'The value sent by the erase command is not documented by the device library and has not been verified on real hardware.',
   'cal.flash.done': 'Done for {target}.',
+  'cal.flash.needBackup':
+    'Storing to or erasing the flash of {target} is locked until its coefficients have been downloaded to a file in this session.',
+  'cal.flash.backupNow': 'Back up now (whole memory)',
+  'cal.flash.typeConfirm': 'Type {code} (port-card) to confirm the erase',
 
   // --- unsupported ------------------------------------------------------------------------
   'cal.unsupported.title': 'Not offered',
@@ -229,6 +233,10 @@ export const calibrationTh: Record<keyof typeof calibrationEn, string> = {
   'cal.flash.eraseUnverified':
     'ค่าที่คำสั่งลบส่งไปไม่มีเอกสารในไลบรารีอุปกรณ์ และยังไม่ได้ยืนยันกับเครื่องจริง',
   'cal.flash.done': 'ดำเนินการกับ {target} เรียบร้อย',
+  'cal.flash.needBackup':
+    'การบันทึกลงแฟลชหรือลบแฟลชของ {target} ถูกล็อกไว้ จนกว่าจะดาวน์โหลดค่าสัมประสิทธิ์ของการ์ดนี้ลงไฟล์ในรอบการใช้งานนี้',
+  'cal.flash.backupNow': 'สำรองตอนนี้ (หน่วยความจำทั้งหมด)',
+  'cal.flash.typeConfirm': 'พิมพ์ {code} (พอร์ต-การ์ด) เพื่อยืนยันการลบ',
 
   'cal.unsupported.title': 'ส่วนที่ไม่มีให้',
   'cal.unsupported.intro': 'ส่วนเหล่านี้ของคาลิเบรตใน NovaLCT ยังไม่มีให้ พร้อมเหตุผล:',

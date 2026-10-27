@@ -145,6 +145,8 @@ export function createCalibrationFeature(ctx: FeatureContext, options: Calibrati
       throw new DeviceError('PERMISSION', `advanced user level required to ${what}`);
     }
   };
+  // validateCardIndex caps port at 0xFE and card at 0xFFFE, so the broadcast addresses (port 0xFF /
+  // card 0xFFFF, i.e. target 'all') are refused here: flash store and erase work on one card at a time.
   const checkCard = (portIndex: number, cardIndex: number): void => {
     const bad = validateCalibrationCard(portIndex, cardIndex);
     if (bad) throw invalid(bad);

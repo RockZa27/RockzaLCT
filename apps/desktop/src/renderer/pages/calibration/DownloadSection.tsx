@@ -1,22 +1,26 @@
 import { useEffect, useState } from 'react';
 import {
   COEFFICIENT_REGION,
-  buildCoefficientFile,
-  coefficientIoFromApi,
-  downloadCoefficients,
-  serializeCoefficientFile,
   validateCoefficientRange,
 } from '@rockzalct/shared';
 import { useI18n } from '../../i18n/I18nProvider';
 import { useApp } from '../../state/AppContext';
-import { coefficientFileName, downloadTextFile } from './fileIo';
+import { backupCard } from './backup';
 import { ProgressBar } from './ProgressBar';
 import { failureReason } from './reason';
 import type { CardRef } from './StateSection';
 import { useTransfer } from './useTransfer';
 
 /** Read the card's coefficient memory block by block and save it as a coefficient file. Allowed at the normal level. */
-export function DownloadSection({ card, onBusy }: { card: CardRef | null; onBusy(busy: boolean): void }) {
+export function DownloadSection({
+  card,
+  onBusy,
+  onBackedUp,
+}: {
+  card: CardRef | null;
+  onBusy(busy: boolean): void;
+  onBackedUp(card: CardRef): void;
+}) {
   const { t } = useI18n();
   const { api, connectedId, info } = useApp();
   const [offset, setOffset] = useState('0');
@@ -40,19 +44,10 @@ export function DownloadSection({ card, onBusy }: { card: CardRef | null; onBusy
     setMessage('');
     const options = transfer.start('download', len);
     try {
-      const io = coefficientIoFromApi(api, connectedId, card.portIndex, card.cardIndex);
-      const res = await downloadCoefficients(io, off, len, options);
-      if (res.ok) {
-        const file = buildCoefficientFile({
-          controller: { model: info?.model ?? '', firmwareVersion: info?.firmwareVersion ?? '' },
-          portIndex: card.portIndex,
-          cardIndex: card.cardIndex,
-          offset: off,
-          data: res.data,
-        });
-        const name = coefficientFileName(card.portIndex, card.cardIndex);
-        downloadTextFile(name, serializeCoefficientFile(file));
-        setMessage(t('cal.dl.done', { bytes: len, file: name }));
+      const { result: res, fileName } = await backupCard(api, connectedId, info, card, off, len, options);
+      if (res.ok && fileName) {
+        onBackedUp(card);
+        setMessage(t('cal.dl.done', { bytes: len, file: fileName }));
       } else if (res.failed) {
         setMessage(t('cal.dl.failed', { offset: res.failed.offset, reason: failureReason(t, res.failed) }));
       } else {

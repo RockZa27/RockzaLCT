@@ -7,11 +7,13 @@ export function ConfirmDialog({
   children,
   onConfirm,
   onCancel,
+  confirmDisabled = false,
 }: {
   title: string;
   children: ReactNode;
   onConfirm(): void;
   onCancel(): void;
+  confirmDisabled?: boolean;
 }) {
   const { t } = useI18n();
   return (
@@ -23,7 +25,7 @@ export function ConfirmDialog({
           <button type="button" autoFocus onClick={onCancel}>
             {t('cal.confirm.cancel')}
           </button>
-          <button type="button" className="primary" onClick={onConfirm}>
+          <button type="button" className="primary" disabled={confirmDisabled} onClick={onConfirm}>
             {t('cal.confirm.ok')}
           </button>
         </div>

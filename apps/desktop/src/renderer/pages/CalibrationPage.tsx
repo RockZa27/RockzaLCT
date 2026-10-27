@@ -14,8 +14,15 @@ export function CalibrationPage() {
   const cards = useMemo(() => info?.receivingCards ?? [], [info]);
   const [selected, setSelected] = useState('');
   // The card cannot be changed while a transfer runs: it would hide the progress and the cancel button.
-  const [busy, setBusy] = useState({ dl: false, up: false });
-  const transferring = busy.dl || busy.up;
+  const [busy, setBusy] = useState({ dl: false, up: false, fl: false });
+  const transferring = busy.dl || busy.up || busy.fl;
+  // Cards whose coefficients were downloaded to a file in this session ("port:card"); unlocks store / erase of that card only.
+  const [backedUp, setBackedUp] = useState<ReadonlySet<string>>(() => new Set());
+  const onBackedUp = useCallback(
+    (c: { portIndex: number; cardIndex: number }) => setBackedUp((s) => new Set(s).add(`${c.portIndex}:${c.cardIndex}`)),
+    [],
+  );
+  const onFlBusy = useCallback((b: boolean) => setBusy((s) => (s.fl === b ? s : { ...s, fl: b })), []);
   const onDlBusy = useCallback((b: boolean) => setBusy((s) => (s.dl === b ? s : { ...s, dl: b })), []);
   const onUpBusy = useCallback((b: boolean) => setBusy((s) => (s.up === b ? s : { ...s, up: b })), []);
 
@@ -56,9 +63,15 @@ export function CalibrationPage() {
       </div>
 
       <StateSection key={`state:${cardKey}`} card={card} />
-      <DownloadSection key={`dl:${cardKey}`} card={card} onBusy={onDlBusy} />
-      <UploadSection key={`up:${cardKey}`} card={card} onBusy={onUpBusy} />
-      <FlashSection key={`fl:${cardKey}`} card={card} />
+      <DownloadSection key={`dl:${cardKey}`} card={card} onBusy={onDlBusy} onBackedUp={onBackedUp} />
+      <UploadSection key={`up:${cardKey}`} card={card} onBusy={onUpBusy} onBackedUp={onBackedUp} />
+      <FlashSection
+        key={`fl:${cardKey}`}
+        card={card}
+        backedUp={card ? backedUp.has(`${card.portIndex}:${card.cardIndex}`) : false}
+        onBackedUp={onBackedUp}
+        onBusy={onFlBusy}
+      />
       <UnsupportedSection />
     </section>
   );

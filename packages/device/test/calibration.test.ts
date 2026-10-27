@@ -495,6 +495,19 @@ describe('against the simulator', () => {
     expect(res.data).toEqual(pattern(1024).slice(0, 512));
   });
 
+  it('refuses erase and store for all cards (broadcast address) with zero requests sent', async () => {
+    await open(true);
+    const before = sim.state.requestCount;
+    await expectCode(service.eraseCoefficientsInFlash(id, 0xff, 0xffff), 'INVALID_ARGUMENT');
+    await expectCode(service.eraseCoefficientsInFlash(id, 0xff, 0), 'INVALID_ARGUMENT');
+    await expectCode(service.eraseCoefficientsInFlash(id, 0, 0xffff), 'INVALID_ARGUMENT');
+    await expectCode(service.eraseCoefficientsInFlash(id, { scope: 'all' } as never, 0), 'INVALID_ARGUMENT');
+    await expectCode(service.saveCoefficientsToFlash(id, 0xff, 0xffff), 'INVALID_ARGUMENT');
+    expect(sim.state.requestCount).toBe(before);
+    expect(calls).toEqual([]);
+    for (const c of sim.state.receivingCards) expect(c.memory.readU8(R.eraseSpiFlash)).toBe(0xee);
+  });
+
   it('stores to, reloads from and erases flash with the library trigger registers', async () => {
     await open(true);
     await service.saveCoefficientsToFlash(id, 1, 0);

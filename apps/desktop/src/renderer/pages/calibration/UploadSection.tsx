@@ -33,7 +33,15 @@ type Outcome =
  * Upload a coefficient file to the selected card (advanced level only). The default is to back the
  * card's current coefficients up to a file first; the backup must complete before anything is written.
  */
-export function UploadSection({ card, onBusy }: { card: CardRef | null; onBusy(busy: boolean): void }) {
+export function UploadSection({
+  card,
+  onBusy,
+  onBackedUp,
+}: {
+  card: CardRef | null;
+  onBusy(busy: boolean): void;
+  onBackedUp(card: CardRef): void;
+}) {
   const { t } = useI18n();
   const { api, connectedId, info, level } = useApp();
   const advanced = level === 'advanced';
@@ -109,6 +117,7 @@ export function UploadSection({ card, onBusy }: { card: CardRef | null; onBusy(b
             }),
           ),
         );
+        onBackedUp(card);
         done.push(t('cal.up.backupSaved', { file: name }));
         setNotes([...done]);
       }

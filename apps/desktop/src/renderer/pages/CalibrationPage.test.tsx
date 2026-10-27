@@ -406,6 +406,13 @@ describe('CalibrationPage: upload', () => {
   });
 });
 
+const backUpSelectedCard = async (user: ReturnType<typeof renderApp>['user'], bytes = 300) => {
+  await user.clear(screen.getByLabelText('Length (bytes)'));
+  await user.type(screen.getByLabelText('Length (bytes)'), String(bytes));
+  await user.click(screen.getByRole('button', { name: 'Download from card' }));
+  await waitFor(() => expect(screen.getByTestId('cal-dl-result')).toHaveTextContent('Saved'));
+};
+
 describe('CalibrationPage: flash', () => {
   it('is locked at the normal level', async () => {
     const { api } = await open();
@@ -415,10 +422,68 @@ describe('CalibrationPage: flash', () => {
     expect(api.saveCoefficientsToFlash).not.toHaveBeenCalled();
   });
 
+  it('keeps store and erase disabled, with the reason, until THIS card was downloaded to a file', async () => {
+    const downloads = stubDownloads();
+    const { api, user } = await open();
+    await loginAdvanced(user);
+    expect(screen.getByTestId('cal-needs-backup')).toHaveTextContent('port 1 / card 1');
+    expect(screen.getByRole('button', { name: 'Store to flash…' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Erase flash…' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Reload from flash…' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Back up now (whole memory)' })).toBeEnabled();
+
+    // a backup of ANOTHER card does not unlock card 1
+    await user.selectOptions(screen.getByLabelText('Receiving card'), '1:0');
+    await backUpSelectedCard(user);
+    expect(downloads).toHaveLength(1);
+    expect(screen.getByRole('button', { name: 'Store to flash…' })).toBeEnabled(); // card 2 itself is unlocked
+    await user.selectOptions(screen.getByLabelText('Receiving card'), '0:0');
+    expect(screen.getByTestId('cal-needs-backup')).toHaveTextContent('port 1 / card 1');
+    expect(screen.getByRole('button', { name: 'Store to flash…' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Erase flash…' })).toBeDisabled();
+
+    // a download that was cancelled / failed does not unlock either
+    (api.readCoefficientBlock as ReturnType<typeof vi.fn>).mockImplementationOnce(async () => {
+      throw new DeviceError('TIMEOUT', 'x');
+    });
+    await user.click(screen.getByRole('button', { name: 'Download from card' }));
+    await waitFor(() => expect(screen.getByTestId('cal-dl-result')).toHaveTextContent('Reading failed'));
+    expect(screen.getByRole('button', { name: 'Erase flash…' })).toBeDisabled();
+
+    // a completed download of card 1 unlocks it
+    await backUpSelectedCard(user);
+    expect(downloads).toHaveLength(2);
+    expect(screen.queryByTestId('cal-needs-backup')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Store to flash…' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Erase flash…' })).toBeEnabled();
+    expect(api.saveCoefficientsToFlash).not.toHaveBeenCalled();
+    expect(api.eraseCoefficientsInFlash).not.toHaveBeenCalled();
+  });
+
+  it('offers a Back up now shortcut that unlocks the card once the file was saved', async () => {
+    const downloads = stubDownloads();
+    const { api, user } = await open({
+      readCoefficientBlock: vi.fn(async (_id: string, _p: number, _c: number, offset: number, length: number) => ({
+        offset,
+        length,
+        dataBase64: bytesToBase64(new Uint8Array(length)),
+      })),
+    });
+    await loginAdvanced(user);
+    await user.click(screen.getByRole('button', { name: 'Back up now (whole memory)' }));
+    await waitFor(() => expect(screen.getByTestId('cal-flash-backup-result')).toHaveTextContent('Saved 2097152 bytes'), { timeout: 20000 });
+    expect(api.readCoefficientBlock).toHaveBeenCalledTimes(8192);
+    expect(downloads).toHaveLength(1);
+    expect(screen.getByRole('button', { name: 'Erase flash…' })).toBeEnabled();
+    expect(screen.queryByRole('button', { name: 'Back up now (whole memory)' })).not.toBeInTheDocument();
+  }, 30000);
+
   it('names the card in every confirmation and does nothing until confirmed', async () => {
+    stubDownloads();
     const { api, user } = await open();
     await loginAdvanced(user);
     await user.selectOptions(screen.getByLabelText('Receiving card'), '1:0');
+    await backUpSelectedCard(user);
 
     await user.click(screen.getByRole('button', { name: 'Store to flash…' }));
     let dialog = within(screen.getByRole('dialog', { name: 'Store coefficients to flash?' }));
@@ -437,15 +502,38 @@ describe('CalibrationPage: flash', () => {
     expect(dialog.getByText(/flash of port 2 \/ card 1 \(Multi-layer\)/)).toBeInTheDocument();
     await user.click(dialog.getByRole('button', { name: 'Yes, continue' }));
     await waitFor(() => expect(api.reloadCoefficientsFromFlash).toHaveBeenCalledWith('serial:COM9', 1, 0, 'multi-layer'));
+  });
+
+  it('erase needs the card position typed exactly', async () => {
+    stubDownloads();
+    const { api, user } = await open();
+    await loginAdvanced(user);
+    await user.selectOptions(screen.getByLabelText('Receiving card'), '1:0');
+    await backUpSelectedCard(user);
+
+    await user.click(screen.getByRole('button', { name: 'Erase flash…' }));
+    let dialog = within(screen.getByRole('dialog', { name: 'Erase coefficients in flash?' }));
+    expect(dialog.getByText(/flash of port 2 \/ card 1 will be ERASED/)).toBeInTheDocument();
+    expect(dialog.getByText(/not documented by the device library/)).toBeInTheDocument();
+    const confirm = dialog.getByRole('button', { name: 'Yes, continue' });
+    expect(confirm).toBeDisabled();
+    const input = dialog.getByLabelText('Type 2-1 (port-card) to confirm the erase');
+    for (const wrong of ['1-1', '2-2', '21', '2 -1']) {
+      await user.clear(input);
+      await user.type(input, wrong);
+      expect(confirm).toBeDisabled();
+    }
+    await user.click(confirm); // disabled: nothing happens
+    expect(api.eraseCoefficientsInFlash).not.toHaveBeenCalled();
+    await user.click(dialog.getByRole('button', { name: 'No, go back' }));
+    expect(api.eraseCoefficientsInFlash).not.toHaveBeenCalled();
 
     await user.click(screen.getByRole('button', { name: 'Erase flash…' }));
     dialog = within(screen.getByRole('dialog', { name: 'Erase coefficients in flash?' }));
-    expect(dialog.getByText(/flash of port 2 \/ card 1 will be ERASED/)).toBeInTheDocument();
-    expect(dialog.getByText(/not documented by the device library/)).toBeInTheDocument();
-    await user.click(dialog.getByRole('button', { name: 'No, go back' }));
-    expect(api.eraseCoefficientsInFlash).not.toHaveBeenCalled();
-    await user.click(screen.getByRole('button', { name: 'Erase flash…' }));
-    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Yes, continue' }));
+    expect(dialog.getByRole('button', { name: 'Yes, continue' })).toBeDisabled(); // the typed text does not survive
+    await user.type(dialog.getByLabelText('Type 2-1 (port-card) to confirm the erase'), '2-1');
+    expect(dialog.getByRole('button', { name: 'Yes, continue' })).toBeEnabled();
+    await user.click(dialog.getByRole('button', { name: 'Yes, continue' }));
     await waitFor(() => expect(api.eraseCoefficientsInFlash).toHaveBeenCalledWith('serial:COM9', 1, 0));
   });
 });
