@@ -94,6 +94,19 @@ describe('connect with a fake session', () => {
     expect(svc.getFirmwareDetails(id)).toEqual({ mcu: '2.3.4', fpga: '1.0.0' });
   });
 
+  it('names the receiving card from its model id, and keeps Unknown when the card refuses the read', async () => {
+    const named = await setup(fakeSession({ ReadScanCardModle: async () => 17797 }));
+    expect((await named.svc.connect(named.id)).receivingCards[0]!.model).toBe('A8');
+    const refused = await setup(
+      fakeSession({
+        ReadScanCardModle: async () => {
+          throw responseError();
+        },
+      }),
+    );
+    expect((await refused.svc.connect(refused.id)).receivingCards[0]!.model).toBe('Unknown');
+  });
+
   it('tolerates a receiving card that does not answer, but not a dead sender', async () => {
     const session = fakeSession({
       ReadScanner_McuProgramEdition: async () => {

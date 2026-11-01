@@ -9,6 +9,7 @@ import {
   percentToRaw,
   resolveHardwareOverrides,
   rawToPercent,
+  receiverModelName,
   type BrightnessState,
   type ControllerInfo,
   type DeviceApi,
@@ -458,8 +459,14 @@ export function createDeviceService(options: DeviceServiceOptions = {}): DeviceS
         } catch (err) {
           if (!(err instanceof ResponseError)) throw err; // card did not answer: keep going
         }
-        // No receiving-card model register/table exists in @novastar/native.
-        receivingCards.push({ portIndex, cardIndex, model: 'Unknown', firmwareVersion });
+        let model = 'Unknown';
+        try {
+          const modelId = await session.ReadScanCardModle?.(SENDER, portIndex, cardIndex);
+          if (modelId !== undefined) model = receiverModelName(modelId);
+        } catch (err) {
+          if (!(err instanceof ResponseError)) throw err; // card did not answer: keep going
+        }
+        receivingCards.push({ portIndex, cardIndex, model, firmwareVersion });
       }
     }
     return {

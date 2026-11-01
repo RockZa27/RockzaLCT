@@ -8,6 +8,7 @@ import '@novastar/native/api/ReadSender_FPGAProgramEdition';
 import '@novastar/native/api/ReadScanerCountOfSenderCard';
 import '@novastar/native/api/ReadNumberOfCardOrScanBoardInPort';
 import '@novastar/native/api/ReadScanner_McuProgramEdition';
+import '@novastar/native/api/ReadScanCardModle';
 import '@novastar/native/api/ReadAllBrightnessInfo';
 import '@novastar/native/api/SetGlobalBrightness';
 import '@novastar/native/api/SetRGBBrightness';

@@ -89,6 +89,7 @@ export * from './features/calibration.js';
 export * from './features/maintenance.js';
 export * from './features/overrides.js';
 export * from './features/novaImport.js';
+export * from './receiverModels.js';
 
 /** Operations exposed to the renderer over IPC. All methods may reject with DeviceError. */
 export interface DeviceApi extends SenderApi, ReceiverApi, SmartSettingsApi, LayoutApi, PersistApi, MonitorApi, HSeriesApi, TaurusApi, CalibrationApi, MaintenanceApi, OverridesApi, NovaImportApi {

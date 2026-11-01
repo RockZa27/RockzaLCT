@@ -34,6 +34,7 @@ import {
 } from '@novastar/taurus';
 import {
   DeviceError,
+  receiverModelName,
   TAURUS_ID_PREFIX,
   type BrightnessState,
   type ControllerInfo,
@@ -111,8 +112,6 @@ const videoModeName = (mode: TaurusVideoMode): TaurusVideoModeName =>
   mode === TaurusVideoMode.HdmiPreferred ? 'hdmi-preferred' : mode === TaurusVideoMode.Manual ? 'manual' : 'scheduled';
 const videoSourceName = (source: TaurusVideoSource): TaurusVideoSourceName =>
   source === TaurusVideoSource.Hdmi ? 'hdmi' : 'internal';
-
-const hex = (n: number): string => `0x${(n >>> 0).toString(16).toUpperCase().padStart(4, '0')}`;
 
 export function createTaurusBackend(options: TaurusBackendOptions): TaurusBackend {
   const timeoutMs = options.timeoutMs ?? 2000;
@@ -195,7 +194,7 @@ export function createTaurusBackend(options: TaurusBackendOptions): TaurusBacken
       const cards = versions.map<ReceivingCardInfo>((v) => ({
         portIndex: v.port,
         cardIndex: v.receivingCard,
-        model: v.modelId === undefined ? 'Unknown' : `Unknown (${hex(v.modelId)})`,
+        model: v.modelId === undefined ? 'Unknown' : receiverModelName(v.modelId),
         firmwareVersion:
           v.fpgaVersion || v.mcuVersion
             ? [v.fpgaVersion ? `FPGA ${v.fpgaVersion}` : '', v.mcuVersion ? `MCU ${v.mcuVersion}` : ''].filter(Boolean).join(' / ')
