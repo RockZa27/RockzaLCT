@@ -67,16 +67,16 @@ const TEST_PATTERN_MODE: Record<TestPattern, number> = {
  * Byte values written by setDisplayMode via SetKillMode (blackout, receiving-card register
  * 0x02000100) and SetLockMode (freeze, register 0x02000102).
  *
- * UNVERIFIED ON HARDWARE. @novastar/native documents no on/off values for these registers. Evidence
- * used: both registers are 1 byte (AddressMapping.d.mts KillModeOccupancy/LockModeOccupancy = 1),
- * the decompiled structs expose `IsKillMode` as a boolean (ScanBoardRegionInfo.d.mts), and
- * ControlModeTypeEnum (ControlModeType.d.mts) is Normal=0, Black=1, Lock=2. So off=0 and on=1 was
- * chosen for both; if hardware wants lock=2 override `displayModeValues.lockOn` in the options.
+ * Taken from NovaLCT, NOT yet tested on hardware. NovaLCT writes 255 for blackout and 0 for normal
+ * (ScanBoardAccessor ProtocolLibV3Command.SetKillMode), and 255 / 0 for freeze (lock) on / off
+ * (ProtocolLibV3Command, same file). The ControlModeType enum (Normal 0, Black 1, Lock 2) is not
+ * what NovaLCT writes to these registers. Both registers are 1 byte. Override with
+ * `displayModeValues` in the options, or at run time via the advanced hardware settings.
  */
 export const DISPLAY_MODE_VALUES = {
-  killOn: 1,
+  killOn: 255,
   killOff: 0,
-  lockOn: 1,
+  lockOn: 255,
   lockOff: 0,
 } as const;
 
@@ -86,7 +86,7 @@ export interface DeviceServiceOptions {
   /** Initial value of DISPLAY_MODE_VALUES (changeable later with setHardwareOverrides). */
   displayModeValues?: Partial<DisplayModeValues>;
   /**
-   * Initial advanced hardware settings (unverified protocol values), applied over the defaults and
+   * Initial advanced hardware settings (protocol values from NovaLCT, not yet tested on hardware), applied over the defaults and
    * over `displayModeValues`. Changeable at run time with setHardwareOverrides; invalid values throw
    * INVALID_ARGUMENT from createDeviceService.
    */

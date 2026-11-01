@@ -93,20 +93,18 @@ interface LayoutSession {
 const asLayout = (s: SessionLike): LayoutSession => s as unknown as LayoutSession;
 
 /**
- * The sender stores each card's position as one 32-bit word written by SetEthernetPortScannerXY as
- * `(x << 16) + y` little-endian, i.e. bytes 0-1 = y, bytes 2-3 = x (the same byte positions
- * ReadEthernetPortScannerX uses: base + 2). Decoding mirrors that.
+ * The sender stores each card's position as a 4-byte entry at 0x03000000 + 4096*port + 4*card.
+ * NovaLCT writes the bytes X lo, X hi, Y lo, Y hi (Nova.LCT.GigabitSystem.HardwareFiles
+ * ScannerPositionFileCreator.WriteScannerPositionFile), i.e. a little-endian 32-bit word with X in
+ * the LOW 16 bits and Y in the HIGH 16 bits. That is the default order 'x-low'. Taken from NovaLCT,
+ * not yet tested on hardware. The library's own single-call SetEthernetPortScannerXY writes
+ * `(x << 16) + y` (X in the high half), which contradicts this, so the write path swaps the
+ * arguments for 'x-low' (see `scannerXyWriteArgs`).
  *
- * UNVERIFIED ON HARDWARE: AddressMapping.d.cts documents X at +0 and Y at +2 (the opposite), and
- * the generated single-axis SetEthernetPortScannerY writes at +4, so the library is not
- * self-consistent. The vendor functions (not the constants) are what NovaLCT's code path runs, so
- * those are followed here.
- *
- * `order` is the advanced hardware setting HardwareOverrides.scannerXyOrder: 'x-high' (default, the
- * description above) or 'x-low' (x in the low 16 bits). The write path honours the same setting, see
- * `scannerXyWriteArgs`.
+ * `order` is the advanced hardware setting HardwareOverrides.scannerXyOrder: 'x-low' (default) or
+ * 'x-high' (x in the high 16 bits, the old behaviour). The write path honours the same setting.
  */
-export function decodeScannerXY(data: Buffer, order: ScannerXyOrder = 'x-high'): { x: number; y: number } {
+export function decodeScannerXY(data: Buffer, order: ScannerXyOrder = 'x-low'): { x: number; y: number } {
   if (data.length < 4) throw new DeviceError('PROTOCOL', `short card position block (${data.length} bytes)`);
   const word = data.readUInt32LE(0);
   const high = word >>> 16;
@@ -117,8 +115,8 @@ export function decodeScannerXY(data: Buffer, order: ScannerXyOrder = 'x-high'):
 /**
  * The (x, y) arguments to hand to the library's SetEthernetPortScannerXY so that the word on the
  * wire matches `order`. The library always writes `(arg1 << 16) + arg2`, i.e. arg1 lands in the high
- * half. 'x-high' passes (x, y) unchanged (original behaviour); 'x-low' passes (y, x) so x ends up in
- * the low half. Mirror image of decodeScannerXY, which keeps read and write consistent.
+ * half. 'x-low' (default) passes (y, x) so x ends up in the low half; 'x-high' passes (x, y)
+ * unchanged. Mirror image of decodeScannerXY, which keeps read and write consistent.
  */
 export function scannerXyWriteArgs(x: number, y: number, order: ScannerXyOrder): [number, number] {
   return order === 'x-low' ? [y, x] : [x, y];

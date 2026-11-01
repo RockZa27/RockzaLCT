@@ -73,8 +73,9 @@ export const COEF_TYPE = { standard: 1, multiLayer: 4 } as const;
 /**
  * Argument bytes of the commands whose value the native package does not document.
  *
- * UNVERIFIED ON HARDWARE.
- *  - eraseSpiFlash: SetCoefficientInSpiFlashErase.cjs just encodes a caller supplied number into 1 byte
+ * Taken from NovaLCT, not yet tested on hardware.
+ *  - eraseSpiFlash: 0 is what NovaLCT writes to 0x01000008 (TGProtocolParser coefficient-in-SPI-flash
+ *    erase, UC_ErasesCoefs.EraseCoefs). Library side: SetCoefficientInSpiFlashErase.cjs just encodes a caller supplied number into 1 byte
  *    (`encodeUIntLE(v, AddressMapping.CoefficientInSpiFlashEraseOccupancy)`) and no enum names a value
  *    (searched dist/*.d.cts for Erase / Flash types: none). 0 is used because the neighbouring commands of
  *    the same 0x0100_000x family that DO have a fixed value in the library are triggers written with a
@@ -193,7 +194,7 @@ export function createCalibrationFeature(ctx: FeatureContext, options: Calibrati
         target.scope === 'all' ? [ALL_PORTS, ALL_CARDS, true] : [target.portIndex, target.cardIndex, false];
       await on(id, async (s) => {
         if (enabled && type !== undefined) {
-          // Type-aware enable: one state byte (bit layout UNVERIFIED, see CORRECTION_STATE_BITS).
+          // Type-aware enable: one state byte (bit layout: see CORRECTION_STATE_BITS).
           await s.SetCorrectionOn_2(SENDER, port, card, broadcast, composeCorrectionState(type, bits()));
         } else {
           await s.SetCorrectionOn(SENDER, port, card, broadcast, enabled);

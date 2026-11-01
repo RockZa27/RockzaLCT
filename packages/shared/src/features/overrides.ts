@@ -1,12 +1,15 @@
-// Advanced hardware settings: protocol values that could not be verified against real hardware and
-// that the owner can therefore correct at run time (no rebuild). Keep this file free of runtime deps
+// Advanced hardware settings: protocol values taken from NovaLCT's own behaviour (see the evidence on
+// DEFAULT_HARDWARE_OVERRIDES) but not yet tested on real hardware, which the owner can therefore
+// correct at run time (no rebuild). Keep this file free of runtime deps
 // (it is bundled into the renderer as well).
 
 /**
  * Where the receiving-card position word keeps X.
+ *  - 'x-low' (default): X in the low 16 bits, Y in the high 16 bits: wire bytes X lo, X hi, Y lo, Y hi.
+ *    This is the entry layout NovaLCT writes (Nova.LCT.GigabitSystem.HardwareFiles
+ *    ScannerPositionFileCreator.WriteScannerPositionFile).
  *  - 'x-high': X in the high 16 bits, Y in the low 16 bits (bytes 0-1 = Y, 2-3 = X little-endian).
- *    This is what the library's SetEthernetPortScannerXY writes `(x << 16) + y`, the original behaviour.
- *  - 'x-low': X in the low 16 bits, Y in the high 16 bits.
+ *    What the library's SetEthernetPortScannerXY `(x << 16) + y` would write; kept as the alternative.
  */
 export type ScannerXyOrder = 'x-high' | 'x-low';
 
@@ -38,18 +41,30 @@ export interface HardwareOverrides {
 
 export type HardwareOverrideKey = keyof HardwareOverrides;
 
-/** The values the program shipped with; also what "reset to defaults" restores. */
+/**
+ * The values the program ships with; also what "reset to defaults" restores. All are taken from what
+ * NovaLCT itself writes (not yet tested on hardware). Evidence (assembly / type / member):
+ *  - killOn/killOff 255/0: ScanBoardAccessor ProtocolLibV3Command.SetKillMode (blackout 255, normal 0).
+ *  - lockOn/lockOff 255/0: ProtocolLibV3Command (same file), lock-mode register 0x02000102.
+ *  - saveSender 0: TGProtocolParser.SetSaveSendCardsParameters is called with 0 in UC_SendCard,
+ *    UCSendCardPingBoss, UC_SendCardBackupRestore and UC_LEDScreen_Multiply.
+ *  - saveReceiver 0: Frm_TVScreenConfig calls SetParameterStore2SpiFlash(..., 0).
+ *  - eraseSpiFlash 0: TGProtocolParser coefficient-in-SPI-flash erase (UC_ErasesCoefs.EraseCoefs).
+ *  - correctionEnabledBit 0x01 / correctionBrightnessTypeBit 0x02: correction switch register
+ *    0x02000051, bit0 = enable, bit1 = correction type (ProtocolEnum.CorrectType, 1 = brightness).
+ *  - scannerXyOrder 'x-low': ScannerPositionFileCreator.WriteScannerPositionFile (see ScannerXyOrder).
+ */
 export const DEFAULT_HARDWARE_OVERRIDES: Readonly<HardwareOverrides> = Object.freeze({
-  killOn: 1,
+  killOn: 255,
   killOff: 0,
-  lockOn: 1,
+  lockOn: 255,
   lockOff: 0,
-  saveSender: 1,
-  saveReceiver: 1,
+  saveSender: 0,
+  saveReceiver: 0,
   eraseSpiFlash: 0,
   correctionEnabledBit: 0x01,
   correctionBrightnessTypeBit: 0x02,
-  scannerXyOrder: 'x-high',
+  scannerXyOrder: 'x-low',
 });
 
 /** Keys in display order. */

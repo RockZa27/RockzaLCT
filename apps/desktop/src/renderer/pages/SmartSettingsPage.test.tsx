@@ -309,12 +309,13 @@ describe('SmartSettingsPage', () => {
       await user.click(screen.getByRole('button', { name: /Write RGB order/ }));
       await confirmDialog(user);
       await waitFor(() => expect(writeCalls(api)).toHaveLength(1));
-      expect(writeCalls(api)[0]![2]).toEqual({ rgb: { red: 2, green: 0, blue: 1, virtualRed: 0 } });
+      // the first attempt uses the inverse convention (NovaLCT wizard design: field = output slot, value = source channel)
+      expect(writeCalls(api)[0]![2]).toEqual({ rgb: { red: 1, green: 2, blue: 0, virtualRed: 0 } });
 
       await user.click(await screen.findByRole('button', { name: 'Try the opposite mapping' }));
       await confirmDialog(user);
       await waitFor(() => expect(writeCalls(api)).toHaveLength(2));
-      expect(writeCalls(api)[1]![2]).toEqual({ rgb: { red: 1, green: 2, blue: 0, virtualRed: 0 } });
+      expect(writeCalls(api)[1]![2]).toEqual({ rgb: { red: 2, green: 0, blue: 1, virtualRed: 0 } });
       expect(screen.queryByRole('button', { name: 'Try the opposite mapping' })).not.toBeInTheDocument();
     });
   });
@@ -339,7 +340,7 @@ describe('SmartSettingsPage', () => {
       await user.click(screen.getByRole('button', { name: 'Show white' }));
       await user.click(screen.getByRole('radio', { name: /Dark or inverted/ }));
       expect(screen.getByTestId('smart-oe-preview')).toHaveTextContent('from High enable (0) to Low enable (1)');
-      expect(screen.getByText(/UNVERIFIED/)).toBeInTheDocument();
+      expect(screen.getByText(/Values from NovaLCT.*not yet tested on hardware/)).toBeInTheDocument();
       await user.click(screen.getByRole('button', { name: /Write OE polarity/ }));
       await confirmDialog(user);
       await waitFor(() => expect(writeCalls(api)).toHaveLength(1));

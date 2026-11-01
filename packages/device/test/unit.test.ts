@@ -257,7 +257,7 @@ describe('validation', () => {
     await svc.setDisplayMode(id, 'blackout');
     await svc.setDisplayMode(id, 'freeze');
     await svc.setDisplayMode(id, 'normal');
-    expect(kill.mock.calls.map((c) => c[4])).toEqual([1, 0, 0]);
+    expect(kill.mock.calls.map((c) => c[4])).toEqual([255, 0, 0]); // NovaLCT: blackout 255, normal 0
     expect(lock.mock.calls.map((c) => c[4])).toEqual([0, 2, 0]);
   });
 });

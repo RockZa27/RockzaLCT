@@ -658,7 +658,7 @@ export function SmartSettingsPage() {
                     setPending({
                       kind: 'rgb',
                       changes: { rgb: rgbComputation.code },
-                      retry: { base: applied.rgb, obs: rgbObs as RgbObservations, convention: 'normal' },
+                      retry: { base: applied.rgb, obs: rgbObs as RgbObservations, convention: 'inverse' },
                     });
                   }}
                 >
@@ -670,14 +670,14 @@ export function SmartSettingsPage() {
           {rgbTry && (
             <div data-testid="smart-rgb-retry">
               <p>{t('smart.rgb.recheck')}</p>
-              {rgbTry.convention === 'normal' && (
+              {rgbTry.convention === 'inverse' && (
                 <button
                   type="button"
                   disabled={writeBlocked}
                   onClick={() => {
-                    const alt = computeRgbCode(rgbTry.base, rgbTry.obs, 'inverse');
+                    const alt = computeRgbCode(rgbTry.base, rgbTry.obs, 'normal');
                     if (alt.ok) {
-                      setPending({ kind: 'rgb', changes: { rgb: alt.code }, retry: { ...rgbTry, convention: 'inverse' } });
+                      setPending({ kind: 'rgb', changes: { rgb: alt.code }, retry: { ...rgbTry, convention: 'normal' } });
                     }
                   }}
                 >

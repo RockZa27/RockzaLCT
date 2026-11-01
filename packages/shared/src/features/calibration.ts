@@ -45,7 +45,8 @@ export const COEFFICIENT_REGION = {
  * Bit layout of the correction-state byte (register 0x0200_0051, shared by ReadCorrectionState /
  * ReadCorrectionOn / SetCorrectionOn / ReadBrightDarkLineFixState).
  *
- * UNVERIFIED ON HARDWARE. Evidence: SetCorrectionOn_1.cjs builds `isOpenCorrect ? 1 : 0` (bit 0) and
+ * Matches NovaLCT (ProtocolEnum.CorrectType, correction switch register 0x02000051: bit0 = enable,
+ * bit1 = correction type, 1 = brightness); not yet tested on hardware. Library evidence: SetCorrectionOn_1.cjs builds `isOpenCorrect ? 1 : 0` (bit 0) and
  * `type << 1` (CorrectType 0 = chroma, 1 = brightness, so bit 1) and `!retainClrInfo ? 4 : 0` (bit 2).
  * The generator emits those as a 4-element array (`[0, on, type << 1, !retain ? 4 : 0]`), which looks
  * like a decompiler artefact for ONE byte; this program never sends that 4-byte form and never
@@ -55,7 +56,7 @@ export const CORRECTION_STATE_BITS = { enabled: 0x01, brightnessType: 0x02 } as 
 
 export type CorrectionStateBits = { [K in keyof typeof CORRECTION_STATE_BITS]: number };
 
-/** Decode the correction-state byte (bit layout: see CORRECTION_STATE_BITS, UNVERIFIED). */
+/** Decode the correction-state byte (bit layout: see CORRECTION_STATE_BITS). */
 export function decodeCorrectionState(
   raw: number,
   bits: CorrectionStateBits = CORRECTION_STATE_BITS,
@@ -63,7 +64,7 @@ export function decodeCorrectionState(
   return { enabled: (raw & bits.enabled) !== 0, type: (raw & bits.brightnessType) !== 0 ? 'brightness' : 'chroma' };
 }
 
-/** The byte that enables calibration of `type` (bit layout: see CORRECTION_STATE_BITS, UNVERIFIED). */
+/** The byte that enables calibration of `type` (bit layout: see CORRECTION_STATE_BITS). */
 export function composeCorrectionState(
   type: CalibrationType,
   bits: CorrectionStateBits = CORRECTION_STATE_BITS,
@@ -96,9 +97,9 @@ export interface CalibrationCardState {
   cardIndex: number;
   /** Raw correction-state byte (register 0x0200_0051). Also what ReadBrightDarkLineFixState returns (same register). */
   stateRaw: number;
-  /** Bit 0 of stateRaw (UNVERIFIED layout, see CORRECTION_STATE_BITS). */
+  /** Bit 0 of stateRaw (layout: see CORRECTION_STATE_BITS). */
   enabled: boolean;
-  /** Bit 1 of stateRaw (UNVERIFIED layout). */
+  /** Bit 1 of stateRaw (layout: see CORRECTION_STATE_BITS). */
   type: CalibrationType;
   /** Raw CoefficientSource byte; omitted when the card refuses the register. */
   coefficientSourceRaw?: number;
@@ -156,7 +157,7 @@ export interface CalibrationApi {
   saveCoefficientsToFlash(id: string, portIndex: number, cardIndex: number, set?: CoefficientSet): Promise<void>;
   /** Replace the card's active coefficients with the ones in its flash. Advanced only. */
   reloadCoefficientsFromFlash(id: string, portIndex: number, cardIndex: number, set?: CoefficientSet): Promise<void>;
-  /** Erase the coefficients stored in the card's SPI flash. Advanced only. The command value is UNVERIFIED (see device feature). */
+  /** Erase the coefficients stored in the card's SPI flash. Advanced only. The command value (0) is the one NovaLCT writes, not yet tested on hardware (see device feature). */
   eraseCoefficientsInFlash(id: string, portIndex: number, cardIndex: number): Promise<void>;
 }
 

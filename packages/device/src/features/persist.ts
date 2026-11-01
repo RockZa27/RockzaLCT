@@ -17,21 +17,19 @@ import type { SessionLike } from '../session.js';
 /**
  * Argument bytes of the two save commands.
  *
- * UNVERIFIED ON HARDWARE. @novastar/native documents no value for either register: both generated
- * functions (SetSaveSendCardsParameters.cjs, SetParameterStore2SpiFlash.cjs) just encode a caller
- * supplied number into 1 byte (AddressMapping *Occupancy = 1) and there is no enum for it (searched
- * dist/*.d.cts for Save/Store/Flash types: none). 1 was chosen as the conventional "trigger" value:
- * it is also what DISPLAY_MODE_VALUES uses for the other 1-byte action registers in this repo, and
- * the readable counterpart ReadSaveSendCardsParameters (Session.cjs, same address) suggests the
- * register holds a flag. If a card ignores 1, override per call (SaveToHardwareOptions) or for the
+ * Taken from NovaLCT, NOT yet tested on hardware. NovaLCT writes 0 to both registers:
+ * TGProtocolParser.SetSaveSendCardsParameters is called with 0 (UC_SendCard, UCSendCardPingBoss,
+ * UC_SendCardBackupRestore, UC_LEDScreen_Multiply) and Frm_TVScreenConfig calls
+ * SetParameterStore2SpiFlash(..., 0). Each is a 1-byte register (AddressMapping *Occupancy = 1).
+ * If a card ignores 0, override per call (SaveToHardwareOptions) or for the
  * whole service (second argument of createPersistFeature) or, at run time, via the advanced hardware
  * settings (HardwareOverrides.saveSender / saveReceiver, read at call time from ctx).
  */
 export const SAVE_COMMAND_VALUES = {
   /** Written to the sender's SaveSendCardsParameters register. */
-  sender: 1,
+  sender: 0,
   /** Written to each receiving card's ParameterStore2SpiFlash register. */
-  receiver: 1,
+  receiver: 0,
 } as const;
 
 export type SaveCommandValues = { [K in keyof typeof SAVE_COMMAND_VALUES]: number };
