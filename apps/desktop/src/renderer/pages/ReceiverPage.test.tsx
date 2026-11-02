@@ -17,6 +17,9 @@ const PARAMS: ReceiverParameters = {
   grayRealize: 1,
   grayMode: 2,
   gamma: 28,
+  temperatureFlagsRaw: 0x81, // valid, negative
+  temperatureRaw: 51, // -25.5 C
+  voltageRaw: 0xb2, // 5.0 V
 };
 
 const fakeReceiver = () =>
@@ -59,6 +62,27 @@ describe('ReceiverPage', () => {
     expect(api.getReceiverParameters).not.toHaveBeenCalled();
   });
 
+  it('shows the custom gamma table and the decoded value of an edited gamma byte', async () => {
+    const api = fakeReceiver();
+    (api.getReceiverParameters as ReturnType<typeof vi.fn>).mockImplementation(async (_id: string, port: number, card: number) => ({
+      ...PARAMS,
+      portIndex: port,
+      cardIndex: card,
+      gamma: 0xfe,
+      temperatureRaw: undefined,
+      temperatureFlagsRaw: undefined,
+      voltageRaw: 0x32, // valid bit clear
+    }));
+    const { user } = renderApp(api);
+    await connectAndGo(user, screen, 'Receiving card');
+    expect(await screen.findByTestId('rp-gamma')).toHaveTextContent('custom table (raw 254)');
+    expect(screen.getByTestId('rp-voltage')).toHaveTextContent('not valid (raw 0x32)');
+    expect(screen.getByTestId('rp-temperature')).toHaveTextContent('n/a');
+    expect(screen.getByTestId('rcv-gamma-preview')).toHaveTextContent('custom table');
+    fireEvent.change(editGroup().getByLabelText('Gamma (raw)'), { target: { value: String(0x40 | 23) } });
+    expect(screen.getByTestId('rcv-gamma-preview')).toHaveTextContent('gamma 2.35');
+  });
+
   it('lists the controller cards, reads the first one and follows the picker', async () => {
     const api = fakeReceiver();
     const { user } = renderApp(api);
@@ -68,8 +92,10 @@ describe('ReceiverPage', () => {
     expect(await screen.findByTestId('rp-size')).toHaveTextContent('64 × 32');
     expect(screen.getByTestId('rp-scan')).toHaveTextContent('16 (1/16 scan)');
     expect(screen.getByTestId('rp-refresh')).toHaveTextContent('1920');
-    expect(screen.getByTestId('rp-gamma')).toHaveTextContent('28');
+    expect(screen.getByTestId('rp-gamma')).toHaveTextContent('2.8 (raw 28)');
     expect(screen.getByTestId('rp-groups')).toHaveTextContent('8 / 8');
+    expect(screen.getByTestId('rp-temperature')).toHaveTextContent('-25.5 °C (raw 0x81 0x33)');
+    expect(screen.getByTestId('rp-voltage')).toHaveTextContent('5.0 V (raw 0xB2)');
 
     const options = within(screen.getByRole('combobox', { name: 'Receiving card' })).getAllByRole('option');
     expect(options.map((o) => o.textContent)).toEqual(['Port 1 / Card 1 (RC-A)', 'Port 2 / Card 1 (RC-B)']);
@@ -86,7 +112,7 @@ describe('ReceiverPage', () => {
     await screen.findByTestId('rp-size');
 
     expect(screen.getByText(/Writing is locked/)).toBeInTheDocument();
-    expect(editGroup().getByLabelText('Gamma (raw register value)')).toBeDisabled();
+    expect(editGroup().getByLabelText('Gamma (raw)')).toBeDisabled();
     expect(editGroup().getByLabelText('Refreshes per frame')).toBeDisabled();
     expect(editGroup().getByLabelText('Grayscale method')).toBeDisabled();
     expect(editGroup().getByRole('button', { name: 'Apply' })).toBeDisabled();
@@ -98,7 +124,7 @@ describe('ReceiverPage', () => {
 
     await loginAdvanced(user);
     expect(screen.queryByText(/Writing is locked/)).not.toBeInTheDocument();
-    expect(editGroup().getByLabelText('Gamma (raw register value)')).toBeEnabled();
+    expect(editGroup().getByLabelText('Gamma (raw)')).toBeEnabled();
     expect(editGroup().getByRole('button', { name: 'Apply' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Apply to card Locked' })).toBeEnabled();
   });
@@ -111,7 +137,7 @@ describe('ReceiverPage', () => {
     await loginAdvanced(user);
 
     fireEvent.change(editGroup().getByLabelText('Refreshes per frame'), { target: { value: '3840' } });
-    fireEvent.change(editGroup().getByLabelText('Gamma (raw register value)'), { target: { value: '26' } });
+    fireEvent.change(editGroup().getByLabelText('Gamma (raw)'), { target: { value: '26' } });
     fireEvent.change(editGroup().getByLabelText('Grayscale depth (raw)'), { target: { value: '13' } });
     await user.selectOptions(editGroup().getByLabelText('Grayscale method'), '4');
     await user.selectOptions(editGroup().getByLabelText('Grayscale mode'), '3');
@@ -157,12 +183,12 @@ describe('ReceiverPage', () => {
     await screen.findByTestId('rp-size');
     await loginAdvanced(user);
 
-    fireEvent.change(editGroup().getByLabelText('Gamma (raw register value)'), { target: { value: '30' } });
+    fireEvent.change(editGroup().getByLabelText('Gamma (raw)'), { target: { value: '30' } });
     await user.click(editGroup().getByRole('button', { name: 'Apply' }));
     await confirmDialog(user);
     expect(await screen.findByText('Permission denied. Advanced login required.')).toBeInTheDocument();
     expect(screen.queryByText('Receiving card settings applied')).not.toBeInTheDocument();
-    expect(editGroup().getByLabelText('Gamma (raw register value)')).toHaveValue(30);
+    expect(editGroup().getByLabelText('Gamma (raw)')).toHaveValue(30);
   });
 
   it('manages the module library: validate, save, persist, apply, delete', async () => {

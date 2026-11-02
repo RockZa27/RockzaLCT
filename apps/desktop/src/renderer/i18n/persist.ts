@@ -26,7 +26,7 @@ export const persistEn = {
   'persist.save.targetAll': 'all receiving cards',
   'persist.save.targetCard': 'port {port} / card {card}',
   'persist.save.unverified':
-    'The value of the save command is not documented by the device library and has not been verified on real hardware. Check on the controller that the values survive a power cycle.',
+    'The save command values (0) are the ones NovaLCT writes, not yet tested on hardware. Check on the controller that the values survive a power cycle.',
   'persist.save.ok': 'Saved {count} receiving card(s).',
   'persist.save.senderOk': 'The sending card was saved.',
   'persist.save.partial': 'Some items could not be saved:',
@@ -163,7 +163,7 @@ export const persistTh: Record<keyof typeof persistEn, string> = {
   'persist.save.targetAll': 'การ์ดรับทุกใบ',
   'persist.save.targetCard': 'พอร์ต {port} / การ์ด {card}',
   'persist.save.unverified':
-    'ไลบรารีอุปกรณ์ไม่ได้ระบุค่าของคำสั่งบันทึก และยังไม่ได้ยืนยันกับเครื่องจริง ควรทดสอบปิด-เปิดไฟแล้วตรวจว่าค่ายังอยู่',
+    'ค่าคำสั่งบันทึก (0) เป็นค่าที่ NovaLCT ใช้ ยังไม่ได้ทดสอบกับเครื่องจริง ควรทดสอบปิด-เปิดไฟแล้วตรวจว่าค่ายังอยู่',
   'persist.save.ok': 'บันทึกการ์ดรับแล้ว {count} ใบ',
   'persist.save.senderOk': 'บันทึกการ์ดส่งแล้ว',
   'persist.save.partial': 'บันทึกบางรายการไม่สำเร็จ:',

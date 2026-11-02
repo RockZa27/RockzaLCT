@@ -732,6 +732,9 @@ describe('model comparison and send checks', () => {
     expect(compareCardModel('MRV328', 'Unknown')).toBe('unknown');
     expect(compareCardModel('MRV328', 'Unknown (0x0660)')).toBe('unknown');
     expect(compareCardModel(null, 'A5s')).toBe('unknown');
+    // one model id can stand for several card names: the file matches if it names any of them
+    expect(compareCardModel('NV7516', 'MRV208-N / NV7516 / NV7520')).toBe('match');
+    expect(compareCardModel('MRV328', 'MRV208-N / NV7516 / NV7520')).toBe('mismatch');
   });
 });
 

@@ -9,6 +9,7 @@ import {
 } from '@rockzalct/shared';
 import type { MockContext } from './context';
 import { mockCardOf, type MockCardStore } from './receiver';
+import { createMockPixelMapping } from './pixelMapping';
 
 interface Extra {
   dataDirection: number;
@@ -38,6 +39,9 @@ export function createMockSmartSettings(ctx: MockContext, cards: MockCardStore):
   };
 
   return {
+    // the pixel-mapping step (point table + scan sequence)
+    ...createMockPixelMapping(ctx, cards),
+
     async readSmartSnapshot(id, portIndex, cardIndex) {
       await ctx.delay();
       ctx.requireConnected(id);

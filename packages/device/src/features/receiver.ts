@@ -202,9 +202,12 @@ export function createReceiverFeature(ctx: FeatureContext): ReceiverApi {
         if (moduleRows !== undefined) params.moduleRows = moduleRows;
         if (decodeType !== undefined) params.decodeType = decodeType;
         if (icPerGroup !== undefined) params.icPerGroup = icPerGroup;
-        // Temperature block is [valid, value] (AddressMapping Scanner_TempValid/TempValue, 1 byte each).
-        // The byte order inside the block is UNVERIFIED on hardware.
-        if (temp !== undefined && (temp & 0xff) !== 0) params.temperatureRaw = (temp >> 8) & 0xff;
+        // ReadTempInfoOfScanCard = decodeUIntLE of 2 bytes: low byte = flags (bit7 valid, bit0
+        // negative), high byte = magnitude (x0.5 C). Decode with temperatureC() (notes Q7).
+        if (temp !== undefined && (temp & 0x80) !== 0) {
+          params.temperatureRaw = (temp >> 8) & 0xff;
+          params.temperatureFlagsRaw = temp & 0xff;
+        }
         if (voltageRaw !== undefined) params.voltageRaw = voltageRaw;
         return params;
       });

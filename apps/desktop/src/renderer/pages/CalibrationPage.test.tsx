@@ -524,7 +524,7 @@ describe('CalibrationPage: flash', () => {
     await user.click(screen.getByRole('button', { name: 'Erase flash…' }));
     let dialog = within(screen.getByRole('dialog', { name: 'Erase coefficients in flash?' }));
     expect(dialog.getByText(/flash of port 2 \/ card 1 will be ERASED/)).toBeInTheDocument();
-    expect(dialog.getByText(/not documented by the device library/)).toBeInTheDocument();
+    expect(dialog.getByText(/the one NovaLCT writes, not yet tested on hardware/)).toBeInTheDocument();
     const confirm = dialog.getByRole('button', { name: 'Yes, continue' });
     expect(confirm).toBeDisabled();
     const input = dialog.getByLabelText('Type 2-1 (port-card) to confirm the erase');

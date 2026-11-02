@@ -36,6 +36,7 @@ import {
 } from '@rockzalct/shared';
 import type { FeatureContext } from './context.js';
 import type { SessionLike } from '../session.js';
+import { createPixelMappingFeature, type PixelMappingOptions } from './pixelMapping.js';
 
 /**
  * Register address (receiving card, deviceType 1) behind every native call used here. Source:
@@ -46,15 +47,15 @@ import type { SessionLike } from '../session.js';
  * address from the .cjs files, so this table cannot drift from the library.
  */
 export const SMART_REGISTERS = {
-  dataDirection: 0x0200_0009, // ReadDataDirection / SetDataDirection (33554441), 1 byte, DataDirectionTypeEnum 0 Horizontal / 1 Vertical (enum names are the library's; the physical effect is UNVERIFIED on hardware)
+  dataDirection: 0x0200_0009, // ReadDataDirection / SetDataDirection (33554441), 1 byte, DataDirectionTypeEnum 0 Horizontal / 1 Vertical (0 Horizontal / 1 Vertical per NovaLCT's DataDirectionType; not yet tested on hardware)
   moduleWidth: 0x0200_000a, // ReadModuleWidth / SetModuleWidth, 1 byte
   moduleHeight: 0x0200_000b, // ReadModuleHeight / SetModuleHeight, 1 byte
   driverIc: 0x0200_000c, // ReadDriverType / SetDriverType, 1 byte
   scanMode: 0x0200_000d, // ReadScanMode / SetScanMode, 1 byte
-  oePolarity: 0x0200_000e, // ReadOEPority / SetOEPority (33554446), 1 byte, OEPolarityTypeEnum 0 HighEnable / 1 LowEnable (which value gives a normal picture is UNVERIFIED on hardware)
+  oePolarity: 0x0200_000e, // ReadOEPority / SetOEPority (33554446), 1 byte, OEPolarityTypeEnum 0 HighEnable / 1 LowEnable (NovaLCT SetOEPority: 0 high-enable, 1 low-enable; not yet tested on hardware)
   decodeType: 0x0200_000f, // ReadDecodeType / SetDecodeType (33554447), 1 byte
   dataGroups: 0x0200_001b, // ReadPhysicalTotalDataGroupNum / SetPhysicalTotalDataGroupNum, 1 byte
-  rgbCode: 0x0200_005c, // ReadRgbCode / SetRgbCode (33554524), 1 byte = red | green << 2 | blue << 4 | virtualRed << 6 (what the 2-bit fields mean is UNVERIFIED on hardware)
+  rgbCode: 0x0200_005c, // ReadRgbCode / SetRgbCode (33554524), 1 byte = red | green << 2 | blue << 4 | virtualRed << 6 (each field = output slot, value = source channel feeding it, inferred from NovaLCT's wizard; not yet tested on hardware)
 } as const;
 
 /** The native Session methods this feature calls (signatures from dist/*.d.cts). */
@@ -99,7 +100,7 @@ const ALL_CARDS = 0xffff;
 
 const invalid = (message: string): DeviceError => new DeviceError('INVALID_ARGUMENT', message);
 
-export function createSmartSettingsFeature(ctx: FeatureContext): SmartSettingsApi {
+export function createSmartSettingsFeature(ctx: FeatureContext, pixelOptions: PixelMappingOptions = {}): SmartSettingsApi {
   const requireAdvanced = (): void => {
     if (ctx.userLevel().level !== 'advanced') {
       throw new DeviceError('PERMISSION', 'advanced user level required to write receiving-card parameters');
@@ -123,6 +124,9 @@ export function createSmartSettingsFeature(ctx: FeatureContext): SmartSettingsAp
   };
 
   return {
+    // The pixel-mapping step (point table + scan sequence); its registers are in pixelMapping.ts.
+    ...createPixelMappingFeature(ctx, pixelOptions),
+
     async readSmartSnapshot(id, portIndex, cardIndex): Promise<SmartSnapshot> {
       const bad = validateReceiverTarget({ scope: 'card', portIndex, cardIndex });
       if (bad) throw invalid(bad);

@@ -36,7 +36,7 @@ export const calibrationEn = {
   'cal.data.data': 'Contains data',
   'cal.state.raw': 'State byte',
   'cal.state.unverified':
-    'The meaning of the bits of the state byte is taken from the device library code and has not been verified on real hardware.',
+    'The bit layout of the state byte (bit 0 = enabled, bit 1 = brightness type) matches NovaLCT, not yet tested on hardware.',
 
   // --- switch -----------------------------------------------------------------------------
   'cal.enable.title': 'Switch calibration',
@@ -109,7 +109,7 @@ export const calibrationEn = {
   'cal.flash.eraseBody':
     'The coefficients stored in the flash of {target} will be ERASED. This cannot be undone. Download a backup file first.',
   'cal.flash.eraseUnverified':
-    'The value sent by the erase command is not documented by the device library and has not been verified on real hardware.',
+    'The value sent by the erase command (0) is the one NovaLCT writes, not yet tested on hardware.',
   'cal.flash.done': 'Done for {target}.',
   'cal.flash.needBackup':
     'Storing to or erasing the flash of {target} is locked until its coefficients have been downloaded to a file in this session.',
@@ -167,7 +167,7 @@ export const calibrationTh: Record<keyof typeof calibrationEn, string> = {
   'cal.data.data': 'มีข้อมูล',
   'cal.state.raw': 'ไบต์สถานะ',
   'cal.state.unverified':
-    'ความหมายของแต่ละบิตในไบต์สถานะอ่านจากโค้ดของไลบรารีอุปกรณ์ และยังไม่ได้ยืนยันกับเครื่องจริง',
+    'โครงบิตของไบต์สถานะ (บิต 0 = เปิด, บิต 1 = ชนิดความสว่าง) ตรงกับ NovaLCT ยังไม่ได้ทดสอบกับเครื่องจริง',
 
   'cal.enable.title': 'เปิด/ปิดคาลิเบรต',
   'cal.enable.type': 'ชนิดที่จะใช้',
@@ -235,7 +235,7 @@ export const calibrationTh: Record<keyof typeof calibrationEn, string> = {
   'cal.flash.eraseTitle': 'ลบค่าสัมประสิทธิ์ในแฟลช?',
   'cal.flash.eraseBody': 'ค่าสัมประสิทธิ์ที่เก็บในแฟลชของ {target} จะถูกลบ ย้อนกลับไม่ได้ ควรดาวน์โหลดไฟล์สำรองก่อน',
   'cal.flash.eraseUnverified':
-    'ค่าที่คำสั่งลบส่งไปไม่มีเอกสารในไลบรารีอุปกรณ์ และยังไม่ได้ยืนยันกับเครื่องจริง',
+    'ค่าที่คำสั่งลบส่งไป (0) เป็นค่าที่ NovaLCT ใช้ ยังไม่ได้ทดสอบกับเครื่องจริง',
   'cal.flash.done': 'ดำเนินการกับ {target} เรียบร้อย',
   'cal.flash.needBackup':
     'การบันทึกลงแฟลชหรือลบแฟลชของ {target} ถูกล็อกไว้ จนกว่าจะดาวน์โหลดค่าสัมประสิทธิ์ของการ์ดนี้ลงไฟล์ในรอบการใช้งานนี้',

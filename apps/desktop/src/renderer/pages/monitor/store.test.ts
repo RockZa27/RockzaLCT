@@ -24,9 +24,9 @@ afterEach(() => resetMonitorStore());
 describe('monitor store', () => {
   it('a hot card that drops offline and returns still hot neither clears nor re-raises its temperature alert', () => {
     const t = DEFAULT_MONITOR_THRESHOLDS;
-    ingest(ID, snap(card({ temperatureRaw: 90 }), 1), t);
+    ingest(ID, snap(card({ temperatureRaw: 180 }), 1), t);
     ingest(ID, snap(card({ state: 'offline' }), 2), t);
-    const back = ingest(ID, snap(card({ temperatureRaw: 90 }), 3), t);
+    const back = ingest(ID, snap(card({ temperatureRaw: 180 }), 3), t);
 
     const temperatureEvents = back.events.filter((e) => e.alert.kind === 'temperature-high').map((e) => e.type);
     expect(temperatureEvents).toEqual(['raised']);

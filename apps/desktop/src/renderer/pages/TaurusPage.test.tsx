@@ -336,6 +336,8 @@ describe('Brightness and Test & Display on a Taurus', () => {
     await screen.findByTestId('controller-info');
     await user.click(screen.getByRole('button', { name: 'Test & Display' }));
     expect(screen.getByTestId('taurus-unsupported')).toHaveTextContent('not supported on Taurus players');
+    // connected: the page must not also ask to connect first
+    expect(screen.queryByText('Connect to a controller first.')).not.toBeInTheDocument();
     for (const name of ['Red', 'Off', 'Blackout', 'Freeze', 'Normal']) {
       expect(screen.getByRole('button', { name })).toBeDisabled();
     }

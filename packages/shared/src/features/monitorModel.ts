@@ -1,5 +1,6 @@
 // Data model of the monitoring feature (PLAN.md phase 7). No runtime deps, no I/O.
-// All readings are RAW register bytes: the library defines no unit/scale (see monitor.ts).
+// Readings are kept as RAW register bytes (valid bit included); the UI and the alert logic turn them
+// into real units with the decoders in units.ts (formulas: docs/novalct-protocol-notes.md Q7).
 
 export interface MonitorCardRef {
   /** Sending-card output port (0-based). */
@@ -30,13 +31,16 @@ export type MonitorCardState = 'online' | 'offline' | 'error';
 
 /** Extra values from a monitor card attached to a receiving card (82-byte block, bytes 0x20..0x51). */
 export interface MonitorAttachedCard {
+  /** Temperature magnitude byte (x0.5 C); present only when the flags byte had the valid bit. */
   temperatureRaw?: number;
+  /** Temperature flags byte (bit7 valid, bit0 negative). Absent means valid and positive. */
+  temperatureFlagsRaw?: number;
   humidityRaw?: number;
-  /** Raw smoke-warning byte; the library does not define its encoding. */
+  /** Raw smoke byte (bit7 valid, bit0 alarm). */
   smokeRaw?: number;
-  /** 4 raw fan-speed bytes (Scanner_FanSpeedOfMonitorCardNum). */
+  /** 4 raw fan-speed bytes (bit7 valid, low 7 bits x 50 rpm). */
   fanRaw: number[];
-  /** 9 raw voltage bytes (Scanner_VoltageOfMonitorCardNum). */
+  /** 9 raw voltage bytes (bit7 valid, low 7 bits x 0.1 V). */
   voltageRaw: number[];
   generalStatusRaw?: number;
   /** 16 raw module-status bytes (Scanner_ModuleStatusOfMonitorCardBytesCnt). */
@@ -47,9 +51,13 @@ export interface MonitorCardReading extends MonitorCardRef {
   state: MonitorCardState;
   /** Why the card is offline / in error (device error message). */
   error?: string;
-  /** Raw temperature byte; absent when the card flags the block invalid. */
+  /** Raw temperature magnitude byte (x0.5 C); absent when the card flags the block invalid. */
   temperatureRaw?: number;
+  /** Raw temperature flags byte (bit7 valid, bit0 negative). Absent means valid and positive. */
+  temperatureFlagsRaw?: number;
+  /** Raw humidity byte (bit7 valid, low 7 bits %RH). */
   humidityRaw?: number;
+  /** Raw voltage byte (bit7 valid, low 7 bits x 0.1 V). */
   voltageRaw?: number;
   /** Present only when the card reports an attached monitor card. */
   monitorCard?: MonitorAttachedCard;
@@ -86,11 +94,13 @@ export interface MonitorFunctionCardReading {
   error?: string;
   /** Function card's own sensors (FuncCard_ReadFuncCardAllStatus). */
   temperatureRaw?: number;
+  temperatureFlagsRaw?: number;
   humidityRaw?: number;
   voltageRaw?: number;
   /** Monitor card on the function card (FuncCard_ReadMonitorCardAllInfo). */
   linkStateRaw?: number;
   monitorTemperatureRaw?: number;
+  monitorTemperatureFlagsRaw?: number;
   monitorHumidityRaw?: number;
   smokeRaw?: number;
   /** 4 raw fan-speed bytes. */

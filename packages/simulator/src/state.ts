@@ -26,6 +26,21 @@ export const ADDR = {
 } as const;
 
 /** Address of the u16 "cards on this port" register, mirroring ReadNumberOfCardOrScanBoardInPort. */
+/**
+ * Plausible raw telemetry for ReadAllStatus (82 bytes @ 0x0A000000) and the gamma register, so a UI
+ * reading the simulator shows sensible units: ~38-41 C, 45 %RH, 5.0 V (scales: notes Q7). No monitor
+ * card is attached (+0x20 stays 0).
+ */
+function seedStatus(memory: DeviceMemory, index: number): void {
+  const status = Buffer.alloc(82);
+  status[0] = 0x80; // temperature valid, positive
+  status[1] = 76 + (index % 6); // 38.0 .. 40.5 C (x0.5)
+  status[2] = 0x80 | 45; // 45 %RH
+  status[3] = 0x80 | 50; // 5.0 V
+  memory.write(0x0a00_0000, status);
+  memory.writeU8(0x0200_0000, 28); // gamma 2.8
+}
+
 export function cardCountAddress(portIndex: number, cardType: number): number {
   return portIndex < 8
     ? ADDR.cardCountBaseLow + portIndex * 32 + cardType * 2
@@ -112,6 +127,7 @@ export function createState(opts: SimulatorOptions = {}): SimulatorState {
     const memory = new DeviceMemory();
     memory.writeU8(ADDR.globalBrightness, 204); // 80 %
     memory.write(ADDR.rgbBrightness, Buffer.from([255, 255, 255, 255]));
+    seedStatus(memory, i);
     receivingCards.push({ portIndex, cardIndex, memory });
   }
   perPort.forEach((n, port) => {

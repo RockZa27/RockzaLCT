@@ -5,8 +5,9 @@
 //   per record: Request(data) with deviceType ReceivingCard; chunked with Request.makeChunks at the
 //   connection's own maxLength (the library splits a record into consecutive-address chunks; we call
 //   makeChunks ourselves only to report progress and to stop between chunks - the chunk size is the
-//   connection's, never ours); each chunk is sent with connection.send (acknowledged unless broadcast;
-//   a broadcast chunk is followed by the library's own 50 ms pause);
+//   connection's, never ours; see chunkedWrite.ts, shared with the pixel-mapping wizard); each chunk
+//   is sent with connection.send (acknowledged unless broadcast; a broadcast chunk is followed by
+//   the library's own 50 ms pause);
 //   then `delay` ms; then, if pollingTime > 0, poll the busy register 0x02000001 (ack 0 = idle) every
 //   200 ms for up to pollingTime + 10 s, then wait 1000 + (pollingWaitTime & 0x7fff) ms.
 // Addressing follows the other features of this repo (SENDER 0, broadcast = port 0xFF / card 0xFFFF
@@ -31,6 +32,7 @@ import {
 import type { FeatureContext } from './context.js';
 import type { SessionLike } from '../session.js';
 import { parseRcfgx, parseScr, type ParsedRcfgx } from './novaImportParse.js';
+import { sendChunked } from './chunkedWrite.js';
 
 const SENDER = 0;
 const ALL_PORTS = 0xff;
@@ -136,14 +138,9 @@ export function createNovaImportFeature(ctx: FeatureContext, opts: NovaImportOpt
         req.destination = SENDER;
         req.port = port;
         req.rcvIndex = card;
-        for (const chunk of Request.makeChunks(req, conn.maxLength)) {
-          // makeChunks builds the 2nd..nth chunk from a bare Packet and drops the broadcast flag
-          // (codec 2.2.3: only a Request source copies it), which would make the connection wait
-          // for acknowledgements a broadcast never gets. Set it back on every chunk.
-          (chunk as { broadcast: boolean }).broadcast = broadcast; // typed readonly, a plain field at run time
-          await conn.send(chunk);
+        await sendChunked(conn, req, broadcast, (chunk) => {
           state.bytesDone += chunk.length;
-        }
+        });
         if (rec.delayMs > 0) await sleep(rec.delayMs);
         if (rec.pollingTime > 0) {
           await waitForCard(conn, port, card, rec.pollingTime);

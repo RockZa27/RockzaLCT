@@ -14,7 +14,7 @@ import { createLayoutFeature, decodeScannerXY } from '../src/features/layout.js'
 
 // Register addresses, copied from the generated @novastar/native api files (dist/api/<Name>.cjs)
 // so that the tests check the bytes on the wire independently of the implementation:
-//   sender   SetEthernetPortScannerXY  4096*port + 0x03000000 + 4*card   (u32 LE = (x << 16) + y)
+//   sender   SetEthernetPortScannerXY  4096*port + 0x03000000 + 4*card   (u32 LE; NovaLCT entry bytes X lo, X hi, Y lo, Y hi = (y << 16) | x)
 //   sender   SetPortEnable/Width/Height/OffsetX/OffsetY  0x02000050/51/53/55/57 + 9*port (port < 4)
 //   sender   SetSender_ComplexCfgScreenFlagSpace  0x0200004A
 //   card     SetControlWidth 0x02000017, SetControlHeight 0x02000019, SetvCabinetSerialNum 0x0200008B
@@ -109,7 +109,7 @@ const seed = (hw: ReturnType<typeof planLayoutWrite>): void => {
   }
   for (const c of hw.cards) {
     const xy = Buffer.alloc(4);
-    xy.writeUInt32LE(((c.x << 16) | c.y) >>> 0);
+    xy.writeUInt32LE(((c.y << 16) | c.x) >>> 0);
     sender().write(XY(c.port, c.index), xy);
     const m = card(c.port, c.index);
     const w = Buffer.alloc(2);
@@ -125,10 +125,11 @@ const seed = (hw: ReturnType<typeof planLayoutWrite>): void => {
 };
 
 describe('decodeScannerXY', () => {
-  it('mirrors the (x << 16) + y little-endian word and rejects short data', () => {
+  it('decodes the NovaLCT entry (bytes X lo, X hi, Y lo, Y hi) by default and rejects short data', () => {
     const b = Buffer.alloc(4);
-    b.writeUInt32LE(((300 << 16) | 70) >>> 0);
+    b.writeUInt32LE(((70 << 16) | 300) >>> 0);
     expect(decodeScannerXY(b)).toEqual({ x: 300, y: 70 });
+    expect(decodeScannerXY(Buffer.from([0x02, 0x01, 0x04, 0x03]))).toEqual({ x: 0x0102, y: 0x0304 });
     expect(() => decodeScannerXY(Buffer.alloc(2))).toThrow(DeviceError);
   });
 });
@@ -156,8 +157,8 @@ describe('readLayout', () => {
     const screen = setCabinetSize(createLayoutScreen(1, 2, 300, 100), 0, 1, 500, 100);
     const model: LayoutModel = { screen, ports: [{ port: 0, cabinets: [{ row: 0, col: 0 }, { row: 0, col: 1 }] }] };
     seed(planLayoutWrite(model));
-    // x = 300 -> bytes y_lo y_hi x_lo x_hi = 00 00 2C 01
-    expect([...sender().read(XY(0, 1), 4)]).toEqual([0, 0, 0x2c, 0x01]);
+    // x = 300 -> bytes x_lo x_hi y_lo y_hi = 2C 01 00 00
+    expect([...sender().read(XY(0, 1), 4)]).toEqual([0x2c, 0x01, 0, 0]);
     const hw = await service.readLayout(id);
     expect(hw.complexScreen).toBe(true);
     expect(hw.cards[1]).toMatchObject({ x: 300, y: 0, width: 500, height: 100 });
@@ -199,8 +200,8 @@ describe('writeLayout', () => {
       expect(s16(sender(), portReg(PORT.height, 0))).toBe(64);
       expect(s16(sender(), portReg(PORT.offX, 1))).toBe(0);
       expect(s16(sender(), portReg(PORT.offY, 1))).toBe(64);
-      // sender: per-card position table, (x << 16) + y little endian
-      expect([...sender().read(XY(0, 1), 4)]).toEqual([0, 0, 128, 0]);
+      // sender: per-card position table, bytes X lo, X hi, Y lo, Y hi
+      expect([...sender().read(XY(0, 1), 4)]).toEqual([128, 0, 0, 0]);
       expect([...sender().read(XY(1, 0), 4)]).toEqual([0, 0, 0, 0]); // relative to the port region
       // cards: size
       expect(s16(card(1, 1), CTRL_W)).toBe(128);
@@ -208,6 +209,20 @@ describe('writeLayout', () => {
       // serial numbers are only written on request
       expect(s16(card(0, 0), SERIAL)).toBe(0);
       expect(sender().read(COMPLEX, 1)[0]).toBe(0);
+    });
+
+    it('writes a card with both x and y non-zero as bytes X lo, X hi, Y lo, Y hi (NovaLCT entry layout)', async () => {
+      const screen = createLayoutScreen(2, 2, 128, 64);
+      const model: LayoutModel = {
+        screen,
+        ports: [
+          { port: 0, cabinets: [{ row: 0, col: 0 }, { row: 1, col: 1 }] },
+          { port: 1, cabinets: [{ row: 0, col: 1 }, { row: 1, col: 0 }] },
+        ],
+      };
+      await service.writeLayout(id, model, { ignoreCardCount: true });
+      // card 1 of port 0 sits at x = 128 (0x0080), y = 64 (0x0040) relative to the port
+      expect([...sender().read(XY(0, 1), 4)]).toEqual([0x80, 0x00, 0x40, 0x00]);
     });
 
     it('writes the complex flag, cabinet numbers on request, and reads everything back', async () => {

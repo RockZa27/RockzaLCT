@@ -26,7 +26,7 @@ export function TestDisplayPage() {
   return (
     <section>
       <h1>{t('test.title')}</h1>
-      {disabled && <p className="muted">{t('test.needConnect')}</p>}
+      {connectedId === null && <p className="muted">{t('test.needConnect')}</p>}
       {hseries && <p className="muted">{t('test.hseriesNote')}</p>}
       {taurus && (
         <p className="muted" data-testid="taurus-unsupported">

@@ -37,9 +37,11 @@ import type { MessageKey } from '../i18n/dictionary';
 import { useApp } from '../state/AppContext';
 import { loadLibrary, saveLibrary, withProfile } from './moduleLibrary';
 import { ConfirmDialog } from './persist/ConfirmDialog';
+import { PixelMappingStep } from './smart/PixelMappingStep';
+import type { PageId } from '../components/Layout';
 
-type StepId = 'snapshot' | 'basics' | 'rgb' | 'oe' | 'finish';
-const STEPS: readonly StepId[] = ['snapshot', 'basics', 'rgb', 'oe', 'finish'];
+type StepId = 'snapshot' | 'basics' | 'rgb' | 'oe' | 'finish' | 'pixels';
+const STEPS: readonly StepId[] = ['snapshot', 'basics', 'rgb', 'oe', 'finish', 'pixels'];
 
 const FIELD_LABEL: Record<SmartField, MessageKey> = {
   moduleWidth: 'smart.f.moduleWidth',
@@ -74,7 +76,7 @@ interface RgbTry {
 const cardKey = (port: number, card: number): string => `${port}:${card}`;
 const NAME_MAX = 64;
 
-export function SmartSettingsPage() {
+export function SmartSettingsPage({ onNavigate }: { onNavigate?(page: PageId): void } = {}) {
   const { t } = useI18n();
   const { api, connectedId, info, level, run, pushInfo, setPattern } = useApp();
   const advanced = level === 'advanced';
@@ -91,6 +93,8 @@ export function SmartSettingsPage() {
   const [draft, setDraft] = useState<SmartValues | null>(null);
   const [reading, setReading] = useState(false);
   const [busy, setBusy] = useState(false);
+  /** The pixel-mapping step owns the controller: no other step may write, and the page cannot be left. */
+  const [pixelActive, setPixelActive] = useState(false);
   const [pending, setPending] = useState<Pending | null>(null);
   const [rgbObs, setRgbObs] = useState<Partial<Record<ColorName, ColorObservation>>>({});
   const [rgbTry, setRgbTry] = useState<RgbTry | null>(null);
@@ -398,18 +402,19 @@ export function SmartSettingsPage() {
   // ---- Render ----------------------------------------------------------------------------------
 
   const disconnected = connectedId === null;
-  const writeBlocked = !advanced || !snapshot || busy;
+  const writeBlocked = !advanced || !snapshot || busy || pixelActive;
   const stepIndex = STEPS.indexOf(step);
   const goto = (s: StepId) => {
     if (s !== 'snapshot' && !snapshot) return;
+    if (pixelActive) return;
     setStep(s);
   };
   const nav = (
     <div className="row">
-      <button type="button" disabled={stepIndex === 0} onClick={() => goto(STEPS[stepIndex - 1]!)}>
+      <button type="button" disabled={stepIndex === 0 || pixelActive} onClick={() => goto(STEPS[stepIndex - 1]!)}>
         {t('smart.back')}
       </button>
-      <button type="button" disabled={stepIndex === STEPS.length - 1 || !snapshot} onClick={() => goto(STEPS[stepIndex + 1]!)}>
+      <button type="button" disabled={stepIndex === STEPS.length - 1 || !snapshot || pixelActive} onClick={() => goto(STEPS[stepIndex + 1]!)}>
         {t('smart.next')}
       </button>
     </div>
@@ -439,7 +444,7 @@ export function SmartSettingsPage() {
                 type="button"
                 className={'choice' + (step === s ? ' selected' : '')}
                 aria-current={step === s ? 'step' : undefined}
-                disabled={disconnected || (s !== 'snapshot' && !snapshot)}
+                disabled={disconnected || (s !== 'snapshot' && !snapshot) || (pixelActive && step !== s)}
                 onClick={() => goto(s)}
               >
                 {i + 1}. {t(`smart.step.${s}` as MessageKey)}
@@ -449,7 +454,7 @@ export function SmartSettingsPage() {
         </ol>
       </nav>
 
-      {snapshot && step !== 'finish' && (
+      {snapshot && step !== 'finish' && step !== 'pixels' && (
         <div className="card row" data-testid="smart-revert-bar">
           <span className={dirty ? 'field-error' : 'muted'} data-testid="smart-dirty">
             {dirty ? t('smart.dirty') : t('smart.clean')}
@@ -658,7 +663,7 @@ export function SmartSettingsPage() {
                     setPending({
                       kind: 'rgb',
                       changes: { rgb: rgbComputation.code },
-                      retry: { base: applied.rgb, obs: rgbObs as RgbObservations, convention: 'normal' },
+                      retry: { base: applied.rgb, obs: rgbObs as RgbObservations, convention: 'inverse' },
                     });
                   }}
                 >
@@ -670,14 +675,14 @@ export function SmartSettingsPage() {
           {rgbTry && (
             <div data-testid="smart-rgb-retry">
               <p>{t('smart.rgb.recheck')}</p>
-              {rgbTry.convention === 'normal' && (
+              {rgbTry.convention === 'inverse' && (
                 <button
                   type="button"
                   disabled={writeBlocked}
                   onClick={() => {
-                    const alt = computeRgbCode(rgbTry.base, rgbTry.obs, 'inverse');
+                    const alt = computeRgbCode(rgbTry.base, rgbTry.obs, 'normal');
                     if (alt.ok) {
-                      setPending({ kind: 'rgb', changes: { rgb: alt.code }, retry: { ...rgbTry, convention: 'inverse' } });
+                      setPending({ kind: 'rgb', changes: { rgb: alt.code }, retry: { ...rgbTry, convention: 'normal' } });
                     }
                   }}
                 >
@@ -850,6 +855,21 @@ export function SmartSettingsPage() {
           </div>
           {nav}
         </div>
+      )}
+
+      {step === 'pixels' && snapshot && applied && (
+        <>
+          <PixelMappingStep
+            card={card ? { portIndex: card.portIndex, cardIndex: card.cardIndex } : null}
+            applied={applied}
+            advanced={advanced}
+            targetText={targetText()}
+            onActiveChange={setPixelActive}
+            {...(onNavigate ? { onNavigate } : {})}
+            onGoFinish={() => setStep('finish')}
+          />
+          {nav}
+        </>
       )}
 
       {pending && snapshot && applied && (

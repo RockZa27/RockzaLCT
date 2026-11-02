@@ -17,7 +17,7 @@ export interface SaveToHardwareOptions {
   includeSender?: boolean;
   /**
    * Byte written to the sender's save register (SetSaveSendCardsParameters). The library does not
-   * document its meaning; the default is in the device package (SAVE_COMMAND_VALUES, UNVERIFIED).
+   * document its meaning; the default is in the device package (SAVE_COMMAND_VALUES, taken from NovaLCT, not yet tested on hardware).
    */
   senderValue?: number;
   /** Byte written to each card's store-to-flash register (SetParameterStore2SpiFlash); same caveat. */

@@ -1,15 +1,15 @@
-// Advanced hardware settings page (unverified protocol values the owner can correct on the spot).
+// Advanced hardware settings page (protocol values taken from NovaLCT, not yet tested on hardware, that the owner can correct on the spot).
 export const advancedEn = {
   'nav.advanced': 'Advanced hardware settings',
   'adv.title': 'Advanced hardware settings',
   'adv.intro':
-    'These protocol values could not be verified without real hardware. If a command does nothing or does the wrong thing during the hardware test, change the value here and test again straight away; no rebuild or reconnect is needed. Changes are kept after the program is closed.',
+    'These protocol values are taken from what NovaLCT itself writes, but have not been tested on real hardware yet. If a command does nothing or does the wrong thing during the hardware test, change the value here and test again straight away; no rebuild or reconnect is needed. Changes are kept after the program is closed.',
   'adv.scope.mctrl': 'Applies to MCTRL / VX sending cards only.',
   'adv.scope.other':
     'The connected controller is an H series or Taurus: these values have no effect on it (they only apply to MCTRL / VX). You can still view and prepare them.',
   'adv.needLogin': 'Editing needs an advanced login. Viewing and exporting are always allowed.',
   'adv.loading': 'Loading the current settings…',
-  'adv.unverified': 'UNVERIFIED',
+  'adv.unverified': 'From NovaLCT, not tested on hardware',
   'adv.current': 'Current',
   'adv.default': 'Default',
   'adv.newValue': 'New value',
@@ -27,7 +27,7 @@ export const advancedEn = {
   'adv.key.killOff.label': 'Blackout OFF byte (killOff)',
   'adv.key.killOff.desc': 'Byte written to the kill-mode register when Normal is pressed.',
   'adv.key.lockOn.label': 'Freeze ON byte (lockOn)',
-  'adv.key.lockOn.desc': 'Byte written to the lock-mode register (0x02000102) when Freeze is pressed. The developer suspects 2 if 1 does nothing.',
+  'adv.key.lockOn.desc': 'Byte written to the lock-mode register (0x02000102) when Freeze is pressed.',
   'adv.key.lockOff.label': 'Freeze OFF byte (lockOff)',
   'adv.key.lockOff.desc': 'Byte written to the lock-mode register when Normal is pressed.',
   'adv.key.saveSender.label': 'Sending card save byte (saveSender)',
@@ -42,8 +42,8 @@ export const advancedEn = {
   'adv.key.correctionBrightnessTypeBit.desc': 'Which single bit of the correction-state byte means brightness (not chroma) calibration. Must differ from the enabled bit.',
   'adv.key.scannerXyOrder.label': 'Card X/Y word order (scannerXyOrder)',
   'adv.key.scannerXyOrder.desc': 'Where the receiving-card X is kept in the 32-bit position word. Applies to reading and writing the layout alike.',
-  'adv.xy.x-high': 'X in the high 16 bits (default)',
-  'adv.xy.x-low': 'X in the low 16 bits',
+  'adv.xy.x-high': 'X in the high 16 bits',
+  'adv.xy.x-low': 'X in the low 16 bits (default)',
   'adv.bit': 'bit {n} (0x{hex})',
 
   'adv.err.byte': 'Enter a whole number from 0 to 255.',
@@ -84,13 +84,13 @@ export const advancedTh: Record<keyof typeof advancedEn, string> = {
   'nav.advanced': 'ตั้งค่าฮาร์ดแวร์ขั้นสูง',
   'adv.title': 'ตั้งค่าฮาร์ดแวร์ขั้นสูง',
   'adv.intro':
-    'ค่าโปรโตคอลเหล่านี้ยังยืนยันไม่ได้ถ้าไม่มีฮาร์ดแวร์จริง ถ้าระหว่างทดสอบคำสั่งไม่ทำงานหรือทำงานผิด ให้แก้ค่าที่นี่แล้วทดสอบซ้ำได้ทันที ไม่ต้องสร้างโปรแกรมใหม่และไม่ต้องเชื่อมต่อใหม่ ค่าที่แก้จะถูกเก็บไว้แม้ปิดโปรแกรม',
+    'ค่าโปรโตคอลเหล่านี้ได้จากสิ่งที่ NovaLCT เขียนจริง แต่ยังไม่ได้ทดสอบกับเครื่องจริง ถ้าระหว่างทดสอบคำสั่งไม่ทำงานหรือทำงานผิด ให้แก้ค่าที่นี่แล้วทดสอบซ้ำได้ทันที ไม่ต้องสร้างโปรแกรมใหม่และไม่ต้องเชื่อมต่อใหม่ ค่าที่แก้จะถูกเก็บไว้แม้ปิดโปรแกรม',
   'adv.scope.mctrl': 'ใช้กับการ์ดส่ง MCTRL / VX เท่านั้น',
   'adv.scope.other':
     'ตัวควบคุมที่เชื่อมต่ออยู่เป็น H series หรือ Taurus: ค่าเหล่านี้ไม่มีผลกับเครื่องนี้ (ใช้กับ MCTRL / VX เท่านั้น) แต่ยังดูและเตรียมค่าไว้ได้',
   'adv.needLogin': 'การแก้ไขต้องเข้าสู่ระบบขั้นสูง ส่วนการดูและส่งออกไฟล์ทำได้เสมอ',
   'adv.loading': 'กำลังโหลดค่าปัจจุบัน…',
-  'adv.unverified': 'UNVERIFIED',
+  'adv.unverified': 'ค่าจาก NovaLCT ยังไม่ได้ทดสอบกับเครื่องจริง',
   'adv.current': 'ค่าปัจจุบัน',
   'adv.default': 'ค่าเริ่มต้น',
   'adv.newValue': 'ค่าใหม่',
@@ -108,7 +108,7 @@ export const advancedTh: Record<keyof typeof advancedEn, string> = {
   'adv.key.killOff.label': 'ค่า byte ปิดจอดำ (killOff)',
   'adv.key.killOff.desc': 'byte ที่เขียนลงรีจิสเตอร์ kill-mode เมื่อกด ปกติ',
   'adv.key.lockOn.label': 'ค่า byte เปิดหยุดภาพ (lockOn)',
-  'adv.key.lockOn.desc': 'byte ที่เขียนลงรีจิสเตอร์ lock-mode (0x02000102) เมื่อกด หยุดภาพ ผู้พัฒนาสงสัยว่าเป็น 2 ถ้า 1 ไม่ทำงาน',
+  'adv.key.lockOn.desc': 'byte ที่เขียนลงรีจิสเตอร์ lock-mode (0x02000102) เมื่อกด หยุดภาพ',
   'adv.key.lockOff.label': 'ค่า byte ปิดหยุดภาพ (lockOff)',
   'adv.key.lockOff.desc': 'byte ที่เขียนลงรีจิสเตอร์ lock-mode เมื่อกด ปกติ',
   'adv.key.saveSender.label': 'ค่า byte บันทึกการ์ดส่ง (saveSender)',
@@ -123,8 +123,8 @@ export const advancedTh: Record<keyof typeof advancedEn, string> = {
   'adv.key.correctionBrightnessTypeBit.desc': 'บิตเดียวใน byte สถานะที่แปลว่าปรับเทียบความสว่าง (ไม่ใช่สี) ต้องไม่ซ้ำกับบิตเปิด',
   'adv.key.scannerXyOrder.label': 'ลำดับ X/Y ของการ์ดรับ (scannerXyOrder)',
   'adv.key.scannerXyOrder.desc': 'X ของการ์ดรับอยู่ส่วนไหนของคำ 32 บิต ใช้ทั้งตอนอ่านและตอนเขียนผังจอเหมือนกัน',
-  'adv.xy.x-high': 'X อยู่ 16 บิตบน (ค่าเริ่มต้น)',
-  'adv.xy.x-low': 'X อยู่ 16 บิตล่าง',
+  'adv.xy.x-high': 'X อยู่ 16 บิตบน',
+  'adv.xy.x-low': 'X อยู่ 16 บิตล่าง (ค่าเริ่มต้น)',
   'adv.bit': 'บิต {n} (0x{hex})',
 
   'adv.err.byte': 'ใส่จำนวนเต็ม 0 ถึง 255',

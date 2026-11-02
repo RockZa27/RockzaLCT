@@ -3,7 +3,7 @@ import { useI18n } from '../../i18n/I18nProvider';
 import type { MessageKey } from '../../i18n/dictionary';
 import { BIT_CHOICES, descKey, formatValue, labelKey, type OverrideMeta } from './meta';
 
-/** One setting: label, UNVERIFIED tag, explanation, checklist step, current / default value and the editor. */
+/** One setting: label, "from NovaLCT, not tested" tag, explanation, checklist step, current / default value and the editor. */
 export function OverrideRow({
   meta,
   current,

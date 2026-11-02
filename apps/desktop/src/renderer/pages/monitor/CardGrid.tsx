@@ -1,5 +1,6 @@
-import type { CardHealth, MonitorCardReading, MonitorCardRef } from '@rockzalct/shared';
+import { cardTemperatureC, type CardHealth, MonitorCardReading, MonitorCardRef } from '@rockzalct/shared';
 import { useI18n } from '../../i18n/I18nProvider';
+import { showTemp } from './format';
 
 export function CardGrid({
   cards,
@@ -31,8 +32,10 @@ export function CardGrid({
             <span className="mon-tile-name">{t('monitor.card.name', { port: c.portIndex + 1, card: c.cardIndex + 1 })}</span>
             {/* Colour is never the only signal: the status word is always printed. */}
             <span className="mon-badge">{t(`monitor.health.${health}`)}</span>
-            {c.state === 'online' && c.temperatureRaw !== undefined && (
-              <span className="muted">{t('monitor.card.temp', { value: c.temperatureRaw })}</span>
+            {c.state === 'online' && cardTemperatureC(c) !== null && (
+              <span className="muted" title={t('monitor.rawTitle', { raw: showTemp(c.temperatureFlagsRaw, c.temperatureRaw).raw ?? '-' })}>
+                {t('monitor.card.temp', { value: cardTemperatureC(c)!.toFixed(1) })}
+              </span>
             )}
           </button>
         );

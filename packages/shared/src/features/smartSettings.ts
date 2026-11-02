@@ -3,23 +3,29 @@
 // decision logic the wizard uses. Keep this file free of runtime deps (it is bundled into the
 // renderer as well).
 //
-// NOT covered, on purpose: the pixel / point-table mapping (SetModuleScanSequenceInfo,
-// SetTotalPointInTable, SetModuleConfigInfo, SetScanner_*Ram*, SetGenLinearScanBoardRunLineTable).
-// NovaLCT generates those bytes with a proprietary algorithm that is not in the library, so complex or
-// irregular modules still need a module config file made with NovaLCT.
+// The pixel / point-table mapping step (3rd-generation chips: point table 0x03000000, scan sequence
+// 0x1C000100, geometry registers) is in pixelMapping.ts and pixelMappingModel.ts and is part of
+// SmartSettingsApi. NOT covered, on purpose: chip timing / OE / gamma / driver registers and the
+// 4th-generation run-line tables, so complex chips and irregular modules still need a module config
+// file made with NovaLCT.
 
 import type { DeviceErrorCode } from '../index.js';
 import { RECEIVER_LIMITS, type ModuleProfile, type ReceiverParameters, type ReceiverTarget } from './receiver.js';
 
+import { PIXEL_MAPPING_METHODS, type PixelMappingApi } from './pixelMapping.js';
+
 export * from './smartNames.js';
+export * from './pixelMapping.js';
 
 // ---------------------------------------------------------------------------------------------
 // Values
 
 /**
  * The RGB code register (SetRgbCode.cjs: `red | green << 2 | blue << 4 | virtualRed << 6`, 1 byte).
- * Each field is 2 bits. What a field value MEANS (which data channel goes to which output colour) is
- * UNVERIFIED on hardware; the wizard treats red/green/blue as a permutation of 0..2 (0 = R, 1 = G,
+ * Each field is 2 bits. NovaLCT's wizard design (Form_AutoStepRGB / ConfigGuid_AutomaticParm_RGB)
+ * implies each field is indexed by OUTPUT SLOT and its value is the SOURCE channel feeding that slot
+ * (the 'inverse' RgbConvention); inferred from the wizard's trial sequence, not read from one formula
+ * and not tested on hardware. The wizard treats red/green/blue as a permutation of 0..2 (0 = R, 1 = G,
  * 2 = B) and keeps `virtualRed` (0..3) untouched.
  */
 export interface RgbCode {
@@ -43,9 +49,9 @@ export interface SmartValues {
   driverIc: number;
   /** DecodeTypeEnum value of the row decoder. */
   decodeType: number;
-  /** DataDirectionTypeEnum: 0 = Horizontal, 1 = Vertical. The physical effect is UNVERIFIED on hardware. */
+  /** DataDirectionTypeEnum: 0 = Horizontal, 1 = Vertical. NovaLCT: 0 = Horizontal, 1 = Vertical (DataDirectionType); the physical effect is chosen by looking at the picture. */
   dataDirection: number;
-  /** OEPolarityTypeEnum: 0 = HighEnable, 1 = LowEnable. Which one makes a given module look right is UNVERIFIED. */
+  /** OEPolarityTypeEnum: 0 = HighEnable, 1 = LowEnable. NovaLCT: SetOEPority writes 1 for LowEnable, 0 for HighEnable. Which one suits a given module is chosen by looking at the picture. */
   oePolarity: number;
   rgb: RgbCode;
 }
@@ -97,7 +103,7 @@ export interface SmartWriteResult {
   failed?: SmartWriteFailure;
 }
 
-export interface SmartSettingsApi {
+export interface SmartSettingsApi extends PixelMappingApi {
   /**
    * Read every register the wizard can write from one receiving card. Allowed for every user level.
    * All registers are required: if any read fails the whole call rejects, so a snapshot is never partial.
@@ -117,6 +123,7 @@ export interface SmartSettingsApi {
 export const SMART_SETTINGS_METHODS: { [K in keyof SmartSettingsApi]-?: true } = {
   readSmartSnapshot: true,
   writeSmartSettings: true,
+  ...PIXEL_MAPPING_METHODS,
 };
 
 // ---------------------------------------------------------------------------------------------
@@ -343,13 +350,14 @@ const defaultRgb = (virtualRed: number): RgbCode => ({ red: 0, green: 1, blue: 2
 /**
  * Which way the 3-colour permutation is read. Both give the same answer for the common cases (two
  * colours swapped) and differ only for the two 3-cycles, so a wizard that cannot know the card's
- * convention tries `normal` first and offers `inverse` if the colours are still wrong afterwards.
+ * convention tries `inverse` first (the reading NovaLCT's wizard design implies, medium-high confidence, not
+ * hardware-verified) and offers `normal` if the colours are still wrong afterwards.
  *
- * `normal` (UNVERIFIED on hardware): the card sends data channel X to output slot `r[X]` (r = the
+ * `normal` (not hardware-verified): the card sends data channel X to output slot `r[X]` (r = the
  * code's red/green/blue fields), the module wiring maps slot k to colour W[k], so the colour seen for
  * X is T[X] = W[r[X]]. We want W[r'[X]] = X, which gives r'[X] = r[T^-1[X]].
  *
- * `inverse` (UNVERIFIED): the fields name the data channel feeding each slot instead (slot X gets
+ * `inverse` (default; inferred from NovaLCT's wizard, not hardware-verified): the fields name the data channel feeding each slot instead (slot X gets
  * data channel r[X]); then T[X] = W[r^-1[X]] and the answer is r'[X] = T[r[X]].
  */
 export type RgbConvention = 'normal' | 'inverse';
@@ -357,7 +365,7 @@ export type RgbConvention = 'normal' | 'inverse';
 /**
  * Compute the RGB code from what the operator saw while the card held `current`. virtualRed is kept.
  */
-export function computeRgbCode(current: RgbCode, observed: RgbObservations, convention: RgbConvention = 'normal'): RgbComputation {
+export function computeRgbCode(current: RgbCode, observed: RgbObservations, convention: RgbConvention = 'inverse'): RgbComputation {
   const T = COLOR_NAMES.map((c) => observed[c]);
   if (T.some((o) => o === 'none')) return { ok: false, reason: 'invalid-observation' };
   const seen = T.map((o) => COLOR_INDEX[o as ColorName]);
@@ -395,7 +403,7 @@ export type OeDecision =
  * `normal` keeps the current polarity; `inverted` (white looks dark / the picture looks inverted)
  * toggles it. The toggle direction needs no knowledge of which value is "right": there are only two
  * (OEPolarityTypeEnum HighEnable 0 / LowEnable 1). Which physical symptom each value produces is
- * UNVERIFIED on hardware, hence the wizard re-checks after writing.
+ * not hardware-verified, hence the wizard re-checks after writing.
  */
 export function decideOePolarity(current: number, observed: OeObservation): OeDecision {
   if (!inRange(current, SMART_LIMITS.oePolarity)) return { ok: false, reason: 'invalid-current' };
