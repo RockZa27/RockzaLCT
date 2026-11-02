@@ -3,6 +3,9 @@ import {
   GRAY_MODE_NAMES,
   GRAY_REALIZE_NAMES,
   RECEIVER_LIMITS,
+  decodeGamma,
+  temperatureC,
+  voltageV,
   parseModuleLibraryJson,
   serializeModuleLibrary,
   validateModuleProfile,
@@ -322,6 +325,25 @@ export function ReceiverPage() {
 
   const dash = t('rcv.unavailable');
   const opt = (v: number | undefined): string => (v === undefined ? dash : String(v));
+  const hex = (b: number): string => `0x${(b & 0xff).toString(16).toUpperCase().padStart(2, '0')}`;
+  /** Decoded gamma ("2.8" / "custom table") for a raw register byte. */
+  const gammaText = (raw: number): string => {
+    const g = decodeGamma(raw);
+    return g.kind === 'custom' ? t('rcv.gamma.custom') : g.value.toFixed(2).replace(/0$/, '');
+  };
+  const withRaw = (text: string | null, raw: string | null): string =>
+    raw === null ? dash : `${text ?? t('rcv.invalidReading')} (${t('rcv.rawShort', { raw })})`;
+  const tempText = (p: ReceiverParameters): string => {
+    if (p.temperatureRaw === undefined) return dash;
+    const flags = p.temperatureFlagsRaw ?? 0x80;
+    const c = temperatureC(flags, p.temperatureRaw);
+    return withRaw(c === null ? null : `${c.toFixed(1)} °C`, `${hex(flags)} ${hex(p.temperatureRaw)}`);
+  };
+  const voltText = (p: ReceiverParameters): string => {
+    if (p.voltageRaw === undefined) return dash;
+    const v = voltageV(p.voltageRaw);
+    return withRaw(v === null ? null : `${v.toFixed(1)} V`, hex(p.voltageRaw));
+  };
 
   return (
     <section>
@@ -400,11 +422,13 @@ export function ReceiverPage() {
             <dt>{t('rcv.p.grayMode')}</dt>
             <dd>{MODE_KEYS[params.grayMode] ? t(MODE_KEYS[params.grayMode]!) : params.grayMode}</dd>
             <dt>{t('rcv.p.gamma')}</dt>
-            <dd data-testid="rp-gamma">{params.gamma}</dd>
+            <dd data-testid="rp-gamma">
+              {gammaText(params.gamma)} <span className="muted">({t('rcv.rawShort', { raw: params.gamma })})</span>
+            </dd>
             <dt>{t('rcv.p.temperature')}</dt>
-            <dd>{opt(params.temperatureRaw)}</dd>
+            <dd data-testid="rp-temperature">{tempText(params)}</dd>
             <dt>{t('rcv.p.voltage')}</dt>
-            <dd>{opt(params.voltageRaw)}</dd>
+            <dd data-testid="rp-voltage">{voltText(params)}</dd>
           </dl>
         )}
       </div>
@@ -413,8 +437,13 @@ export function ReceiverPage() {
         <h2>{t('rcv.edit')}</h2>
         {!advanced && <p className="muted">{t('rcv.locked')}</p>}
         {numberField('refNumPerVs', 'rcv.p.refNumPerVs', RECEIVER_LIMITS.refNumPerVs)}
-        {numberField('gamma', 'rcv.p.gamma', RECEIVER_LIMITS.gamma)}
+        {numberField('gamma', 'rcv.lib.field.gamma', RECEIVER_LIMITS.gamma)}
         <p className="muted">{t('rcv.gamma.hint')}</p>
+        {edit && (
+          <p className="muted" data-testid="rcv-gamma-preview">
+            {t('rcv.gamma.preview', { value: gammaText(edit.gamma) })}
+          </p>
+        )}
         {numberField('grayDepth', 'rcv.p.grayDepth', RECEIVER_LIMITS.grayDepth)}
         <label className="field">
           {t('rcv.p.grayRealize')}

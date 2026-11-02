@@ -26,8 +26,9 @@ export const MOCK_RECEIVER_DEFAULTS = {
   grayRealize: 0,
   grayMode: 1,
   gamma: 28,
-  temperatureRaw: 42,
-  voltageRaw: 50,
+  temperatureFlagsRaw: 0x80,
+  temperatureRaw: 84, // 42.0 C
+  voltageRaw: 0x80 | 50, // 5.0 V
 } as const;
 
 /** The mock cards of every controller, keyed by `id|port|card`; shared with the smart-settings mock. */

@@ -1,7 +1,8 @@
 import { temperatureSeries, type MonitorCardReading, type MonitorSnapshot } from '@rockzalct/shared';
 import { useI18n } from '../../i18n/I18nProvider';
 import { TrendChart } from './TrendChart';
-import { bytes } from './format';
+import { Reading } from './Reading';
+import { bytes, showFan, showHumidity, showList, showSmoke, showTemp, showVoltage } from './format';
 
 const show = (v: number | undefined): string => (v === undefined ? '-' : String(v));
 
@@ -45,16 +46,20 @@ export function CardDetail({
             <div className="kv-row">
               <dt>{t('monitor.detail.temperature')}</dt>
               <dd data-testid="detail-temperature">
-                {card.temperatureRaw === undefined ? t('monitor.detail.invalid') : card.temperatureRaw}
+                <Reading shown={showTemp(card.temperatureFlagsRaw, card.temperatureRaw)} empty={t('monitor.detail.invalid')} />
               </dd>
             </div>
             <div className="kv-row">
               <dt>{t('monitor.detail.humidity')}</dt>
-              <dd data-testid="detail-humidity">{show(card.humidityRaw)}</dd>
+              <dd data-testid="detail-humidity">
+                <Reading shown={showHumidity(card.humidityRaw)} />
+              </dd>
             </div>
             <div className="kv-row">
               <dt>{t('monitor.detail.voltage')}</dt>
-              <dd data-testid="detail-voltage">{show(card.voltageRaw)}</dd>
+              <dd data-testid="detail-voltage">
+                <Reading shown={showVoltage(card.voltageRaw)} />
+              </dd>
             </div>
             {card.bitErrorRaw && (
               <div className="kv-row">
@@ -73,23 +78,38 @@ export function CardDetail({
             <dl className="kv" data-testid="detail-monitor-card">
               <div className="kv-row">
                 <dt>{t('monitor.detail.temperature')}</dt>
-                <dd>{mc.temperatureRaw === undefined ? t('monitor.detail.invalid') : mc.temperatureRaw}</dd>
+                <dd>
+                  <Reading shown={showTemp(mc.temperatureFlagsRaw, mc.temperatureRaw)} empty={t('monitor.detail.invalid')} />
+                </dd>
               </div>
               <div className="kv-row">
                 <dt>{t('monitor.detail.humidity')}</dt>
-                <dd>{show(mc.humidityRaw)}</dd>
+                <dd>
+                  <Reading shown={showHumidity(mc.humidityRaw)} />
+                </dd>
               </div>
               <div className="kv-row">
                 <dt>{t('monitor.detail.smoke')}</dt>
-                <dd data-testid="detail-smoke">{show(mc.smokeRaw)}</dd>
+                <dd data-testid="detail-smoke">
+                  <Reading
+                    shown={{
+                      text: showSmoke(mc.smokeRaw).alarm === null ? null : t(showSmoke(mc.smokeRaw).alarm ? 'monitor.smoke.alarm' : 'monitor.smoke.ok'),
+                      raw: showSmoke(mc.smokeRaw).raw,
+                    }}
+                  />
+                </dd>
               </div>
               <div className="kv-row">
                 <dt>{t('monitor.detail.fans')}</dt>
-                <dd data-testid="detail-fans">{bytes(mc.fanRaw)}</dd>
+                <dd data-testid="detail-fans">
+                  <Reading shown={showList(mc.fanRaw, showFan)} />
+                </dd>
               </div>
               <div className="kv-row">
                 <dt>{t('monitor.detail.voltages')}</dt>
-                <dd>{bytes(mc.voltageRaw)}</dd>
+                <dd data-testid="detail-voltages">
+                  <Reading shown={showList(mc.voltageRaw, (b) => showVoltage(b))} />
+                </dd>
               </div>
               <div className="kv-row">
                 <dt>{t('monitor.detail.general')}</dt>
@@ -117,8 +137,8 @@ export function CardDetail({
           label={t('monitor.trend.label', {
             port: card.portIndex + 1,
             card: card.cardIndex + 1,
-            min: Math.min(...known),
-            max: Math.max(...known),
+            min: Math.min(...known).toFixed(1),
+            max: Math.max(...known).toFixed(1),
           })}
         />
       )}

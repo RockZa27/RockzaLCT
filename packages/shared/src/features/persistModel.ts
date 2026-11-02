@@ -54,7 +54,7 @@ export interface ScreenConfigSender {
 }
 
 /** One receiving card; live telemetry (temperature, voltage) is deliberately not stored. */
-export type ScreenConfigReceiver = Omit<ReceiverParameters, 'temperatureRaw' | 'voltageRaw'>;
+export type ScreenConfigReceiver = Omit<ReceiverParameters, 'temperatureRaw' | 'temperatureFlagsRaw' | 'voltageRaw'>;
 
 export interface ScreenConfig {
   format: typeof SCREEN_CONFIG_FORMAT;
@@ -452,8 +452,9 @@ export function receiverWritePlan(card: ScreenConfigReceiver): ReceiverWritePlan
 
 /** Strip telemetry from a freshly read card so it can go into a config. */
 export function toConfigReceiver(p: ReceiverParameters): ScreenConfigReceiver {
-  const { temperatureRaw: _t, voltageRaw: _v, ...rest } = p;
+  const { temperatureRaw: _t, temperatureFlagsRaw: _tf, voltageRaw: _v, ...rest } = p;
   void _t;
+  void _tf;
   void _v;
   return rest;
 }

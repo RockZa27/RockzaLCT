@@ -98,57 +98,89 @@ describe('monitor logic (pure)', () => {
   });
 
   it('validates and parses thresholds, falling back to defaults', () => {
+    expect(DEFAULT_MONITOR_THRESHOLDS).toEqual({ temperatureWarnC: 60, temperatureCriticalC: 70, voltageLowV: 4.5, voltageHighV: 5.5 });
     expect(validateThresholds(DEFAULT_MONITOR_THRESHOLDS)).toEqual([]);
-    expect(validateThresholds({ ...DEFAULT_MONITOR_THRESHOLDS, temperatureWarnRaw: 80 })).toHaveLength(1);
-    expect(validateThresholds({ ...DEFAULT_MONITOR_THRESHOLDS, voltageLowRaw: 60, voltageHighRaw: 50 })).toHaveLength(1);
-    expect(validateThresholds({ ...DEFAULT_MONITOR_THRESHOLDS, temperatureWarnRaw: 300, temperatureCriticalRaw: null })).toHaveLength(1);
-    expect(validateThresholds({ ...DEFAULT_MONITOR_THRESHOLDS, temperatureWarnRaw: 1.5 })).toHaveLength(1);
+    expect(validateThresholds({ ...DEFAULT_MONITOR_THRESHOLDS, temperatureWarnC: 80 })).toHaveLength(1);
+    expect(validateThresholds({ ...DEFAULT_MONITOR_THRESHOLDS, voltageLowV: 6, voltageHighV: 5 })).toHaveLength(1);
+    expect(validateThresholds({ ...DEFAULT_MONITOR_THRESHOLDS, temperatureWarnC: 300, temperatureCriticalC: null })).toHaveLength(1);
+    expect(validateThresholds({ ...DEFAULT_MONITOR_THRESHOLDS, voltageHighV: 13 })).toHaveLength(1);
+    expect(validateThresholds({ ...DEFAULT_MONITOR_THRESHOLDS, temperatureWarnC: 42.5, voltageLowV: 4.7 })).toEqual([]);
 
     expect(parseThresholds(null)).toEqual(DEFAULT_MONITOR_THRESHOLDS);
     expect(parseThresholds('not json')).toEqual(DEFAULT_MONITOR_THRESHOLDS);
     expect(parseThresholds('[1,2]')).toEqual(DEFAULT_MONITOR_THRESHOLDS);
-    expect(parseThresholds('{"temperatureWarnRaw":"hot"}')).toEqual(DEFAULT_MONITOR_THRESHOLDS);
-    expect(parseThresholds('{"temperatureWarnRaw":90,"temperatureCriticalRaw":50}')).toEqual(DEFAULT_MONITOR_THRESHOLDS);
-    expect(parseThresholds('{"temperatureWarnRaw":50,"voltageLowRaw":40,"voltageHighRaw":60}')).toEqual({
-      temperatureWarnRaw: 50,
-      temperatureCriticalRaw: 75,
-      voltageLowRaw: 40,
-      voltageHighRaw: 60,
+    expect(parseThresholds('{"temperatureWarnC":"hot"}')).toEqual(DEFAULT_MONITOR_THRESHOLDS);
+    expect(parseThresholds('{"temperatureWarnC":90,"temperatureCriticalC":50}')).toEqual(DEFAULT_MONITOR_THRESHOLDS);
+    expect(parseThresholds('{"temperatureWarnC":50,"voltageLowV":4.2,"voltageHighV":5.8}')).toEqual({
+      temperatureWarnC: 50,
+      temperatureCriticalC: 70,
+      voltageLowV: 4.2,
+      voltageHighV: 5.8,
     });
-    expect(parseThresholds('{"temperatureWarnRaw":null}').temperatureWarnRaw).toBeNull();
+    expect(parseThresholds('{"temperatureWarnC":null}').temperatureWarnC).toBeNull();
   });
 
-  it('evaluates temperature: warning, critical, boundary and disabled limits', () => {
+  it('migrates thresholds stored in the old raw register units', () => {
+    // The old shipped defaults were never a user choice: they map to the new defaults, not to 30 / 37.5 C.
+    expect(
+      parseThresholds('{"temperatureWarnRaw":60,"temperatureCriticalRaw":75,"voltageLowRaw":null,"voltageHighRaw":null}'),
+    ).toEqual(DEFAULT_MONITOR_THRESHOLDS);
+    // A user-chosen raw limit keeps firing at the same register value: raw x 0.5 C, raw x 0.1 V.
+    expect(
+      parseThresholds('{"temperatureWarnRaw":100,"temperatureCriticalRaw":120,"voltageLowRaw":45,"voltageHighRaw":55}'),
+    ).toEqual({ temperatureWarnC: 50, temperatureCriticalC: 60, voltageLowV: 4.5, voltageHighV: 5.5 });
+    expect(parseThresholds('{"temperatureWarnRaw":90,"temperatureCriticalRaw":null,"voltageLowRaw":null,"voltageHighRaw":null}')).toEqual({
+      temperatureWarnC: 45,
+      temperatureCriticalC: null,
+      voltageLowV: null,
+      voltageHighV: null,
+    });
+    // Legacy values that do not survive validation fall back to the defaults; new keys win over old ones.
+    expect(parseThresholds('{"temperatureWarnRaw":200,"temperatureCriticalRaw":100}')).toEqual(DEFAULT_MONITOR_THRESHOLDS);
+    expect(parseThresholds('{"temperatureWarnRaw":100,"temperatureWarnC":55}').temperatureWarnC).toBe(55);
+  });
+
+  it('evaluates temperature in degrees C: warning, critical, boundary and disabled limits', () => {
     const th: MonitorThresholds = { ...DEFAULT_MONITOR_THRESHOLDS };
-    const sev = (t: number | undefined, thresholds = th) =>
-      evaluateSnapshot(snap([card(0, 0, t === undefined ? {} : { temperatureRaw: t })]), thresholds).map((a) => a.severity);
-    expect(sev(59)).toEqual([]);
+    // raw magnitude = 2 x degrees C (flags missing = valid, positive)
+    const sev = (c: number | undefined, thresholds = th) =>
+      evaluateSnapshot(snap([card(0, 0, c === undefined ? {} : { temperatureRaw: c * 2 })]), thresholds).map((a) => a.severity);
+    expect(sev(59.5)).toEqual([]);
     expect(sev(60)).toEqual(['warning']);
-    expect(sev(74)).toEqual(['warning']);
-    expect(sev(75)).toEqual(['critical']);
+    expect(sev(69.5)).toEqual(['warning']);
+    expect(sev(70)).toEqual(['critical']);
     expect(sev(undefined)).toEqual([]); // invalid temperature block: nothing to compare
-    expect(sev(200, { ...th, temperatureWarnRaw: null, temperatureCriticalRaw: null })).toEqual([]);
-    expect(sev(70, { ...th, temperatureWarnRaw: null })).toEqual([]);
-    const [alert] = evaluateSnapshot(snap([card(1, 2, { temperatureRaw: 80 })]), th);
-    expect(alert).toMatchObject({ key: 'card:1:2:temperature', kind: 'temperature-high', value: 80, threshold: 75, portIndex: 1, cardIndex: 2 });
+    expect(sev(120, { ...th, temperatureWarnC: null, temperatureCriticalC: null })).toEqual([]);
+    expect(sev(65, { ...th, temperatureWarnC: null })).toEqual([]);
+    const [alert] = evaluateSnapshot(snap([card(1, 2, { temperatureRaw: 160 })]), th);
+    expect(alert).toMatchObject({ key: 'card:1:2:temperature', kind: 'temperature-high', value: 80, threshold: 70, portIndex: 1, cardIndex: 2 });
+    // a negative temperature never alerts; an explicitly invalid flags byte is skipped
+    expect(evaluateSnapshot(snap([card(0, 0, { temperatureRaw: 200, temperatureFlagsRaw: 0x81 })]))).toEqual([]);
+    expect(evaluateSnapshot(snap([card(0, 0, { temperatureRaw: 200, temperatureFlagsRaw: 0x01 })]))).toEqual([]);
   });
 
-  it('evaluates voltage low / high only when limits are set', () => {
-    const cards = [card(0, 0, { voltageRaw: 30 }), card(0, 1, { voltageRaw: 90 }), card(0, 2, { voltageRaw: 50 })];
-    expect(evaluateSnapshot(snap(cards), DEFAULT_MONITOR_THRESHOLDS)).toEqual([]);
-    const alerts = evaluateSnapshot(snap(cards), { ...DEFAULT_MONITOR_THRESHOLDS, voltageLowRaw: 40, voltageHighRaw: 60 });
-    expect(alerts.map((a) => [a.key, a.kind])).toEqual([
-      ['card:0:0:voltage', 'voltage-low'],
-      ['card:0:1:voltage', 'voltage-high'],
+  it('evaluates voltage low / high in volts, ignoring readings whose valid bit is clear', () => {
+    const v = (volts: number): number => 0x80 | Math.round(volts * 10);
+    const cards = [card(0, 0, { voltageRaw: v(4.4) }), card(0, 1, { voltageRaw: v(5.6) }), card(0, 2, { voltageRaw: v(5.0) })];
+    const alerts = evaluateSnapshot(snap(cards), DEFAULT_MONITOR_THRESHOLDS);
+    expect(alerts.map((a) => [a.key, a.kind, a.value, a.threshold])).toEqual([
+      ['card:0:0:voltage', 'voltage-low', 4.4, 4.5],
+      ['card:0:1:voltage', 'voltage-high', 5.6, 5.5],
     ]);
+    // boundaries are not alerts
+    expect(evaluateSnapshot(snap([card(0, 0, { voltageRaw: v(4.5) }), card(0, 1, { voltageRaw: v(5.5) })]))).toEqual([]);
+    // valid bit clear (raw 50 = 0x32): no reading, no alert
+    expect(evaluateSnapshot(snap([card(0, 0, { voltageRaw: 10 })]))).toEqual([]);
+    // limits switched off
+    expect(evaluateSnapshot(snap(cards), { ...DEFAULT_MONITOR_THRESHOLDS, voltageLowV: null, voltageHighV: null })).toEqual([]);
   });
 
   it('evaluates offline / error cards, port links, sender and function-card problems', () => {
     const s = snap(
       [
-        card(0, 0, { state: 'offline', error: 'timeout', temperatureRaw: 99 }),
+        card(0, 0, { state: 'offline', error: 'timeout', temperatureRaw: 198 }),
         card(0, 1, { state: 'error', error: 'bad ack' }),
-        card(1, 0, { temperatureRaw: 30 }),
+        card(1, 0, { temperatureRaw: 60 }),
       ],
       1,
       {
@@ -193,8 +225,8 @@ describe('monitor logic (pure)', () => {
   });
 
   it('works end to end: two snapshots -> transitions -> stamped events', () => {
-    const before = snap([card(0, 0, { temperatureRaw: 50 })], 1000);
-    const after = snap([card(0, 0, { temperatureRaw: 80 })], 2000);
+    const before = snap([card(0, 0, { temperatureRaw: 100 })], 1000); // 50 C
+    const after = snap([card(0, 0, { temperatureRaw: 160 })], 2000); // 80 C
     const transitions = diffAlerts(evaluateSnapshot(before), evaluateSnapshot(after));
     expect(transitions).toHaveLength(1);
     expect(transitions[0]).toMatchObject({ type: 'raised', alert: { severity: 'critical' } });
@@ -206,17 +238,17 @@ describe('monitor logic (pure)', () => {
 
   it('derives card health, worst first', () => {
     const cards = [
-      card(0, 0, { temperatureRaw: 40 }),
-      card(0, 1, { temperatureRaw: 65 }),
-      card(0, 2, { temperatureRaw: 90 }),
+      card(0, 0, { temperatureRaw: 80 }),
+      card(0, 1, { temperatureRaw: 130 }),
+      card(0, 2, { temperatureRaw: 180 }),
       card(0, 3, { state: 'offline' }),
       card(0, 4, { state: 'error' }),
-      card(0, 10, { temperatureRaw: 65 }),
+      card(0, 10, { temperatureRaw: 130 }),
     ];
     const alerts = evaluateSnapshot(snap(cards));
     expect(cards.map((c) => cardHealth(c, alerts))).toEqual(['ok', 'warning', 'critical', 'offline', 'warning', 'warning']);
     // card 1 and card 10 must not leak into each other through a key prefix
-    expect(cardHealth(card(0, 1), evaluateSnapshot(snap([card(0, 10, { temperatureRaw: 90 })])))).toBe('ok');
+    expect(cardHealth(card(0, 1), evaluateSnapshot(snap([card(0, 10, { temperatureRaw: 180 })])))).toBe('ok');
     expect(worstHealth('warning', 'critical')).toBe('critical');
     expect(worstHealth('offline', 'critical')).toBe('offline');
     expect(worstHealth('ok', 'ok')).toBe('ok');
@@ -231,18 +263,18 @@ describe('monitor logic (pure)', () => {
 
   it('builds a temperature series with gaps for offline cards', () => {
     const h = [
-      snap([card(0, 0, { temperatureRaw: 40 })], 1),
+      snap([card(0, 0, { temperatureRaw: 80 })], 1),
       snap([card(0, 0, { state: 'offline' })], 2),
       snap([card(0, 0)], 3), // online but temperature block invalid
-      snap([card(1, 1, { temperatureRaw: 9 })], 4), // card missing from the snapshot
-      snap([card(0, 0, { temperatureRaw: 45 })], 5),
+      snap([card(1, 1, { temperatureRaw: 18 })], 4), // card missing from the snapshot
+      snap([card(0, 0, { temperatureRaw: 90, temperatureFlagsRaw: 0x81 })], 5), // negative
     ];
     expect(temperatureSeries(h, 0, 0)).toEqual([
       { at: 1, value: 40 },
       { at: 2, value: null },
       { at: 3, value: null },
       { at: 4, value: null },
-      { at: 5, value: 45 },
+      { at: 5, value: -45 },
     ]);
   });
 
@@ -256,22 +288,24 @@ describe('monitor logic (pure)', () => {
     expect(csvCell(undefined)).toBe('');
 
     const csv = readingsToCsv([
-      snap([card(0, 0, { temperatureRaw: 41, humidityRaw: 7, voltageRaw: 50 }), card(0, 1, { state: 'offline', error: 'no, answer' })], Date.UTC(2026, 0, 2, 3, 4, 5)),
+      snap([card(0, 0, { temperatureRaw: 51, temperatureFlagsRaw: 0x80, humidityRaw: 0x80 | 45, voltageRaw: 0xb2 }), card(0, 1, { state: 'offline', error: 'no, answer' })], Date.UTC(2026, 0, 2, 3, 4, 5)),
     ]);
     expect(csv.split('\r\n')).toEqual([
-      'time,controller,port,card,state,temperature_raw,humidity_raw,voltage_raw,error',
-      '2026-01-02T03:04:05.000Z,net:test:5200,0,0,online,41,7,50,',
-      '2026-01-02T03:04:05.000Z,net:test:5200,0,1,offline,,,,"no, answer"',
+      'time,controller,port,card,state,temperature_c,humidity_pct,voltage_v,temperature_raw,temperature_flags_raw,humidity_raw,voltage_raw,error',
+      '2026-01-02T03:04:05.000Z,net:test:5200,0,0,online,25.5,45,5,51,128,173,178,',
+      '2026-01-02T03:04:05.000Z,net:test:5200,0,1,offline,,,,,,,,"no, answer"',
       '',
     ]);
 
-    const ev = toAlertEvents(diffAlerts([], evaluateSnapshot(snap([card(2, 3, { temperatureRaw: 99 })], 0))), snap([], 0));
+    const ev = toAlertEvents(diffAlerts([], evaluateSnapshot(snap([card(2, 3, { temperatureRaw: 198 })], 0))), snap([], 0));
     expect(alertEventsToCsv(ev).split('\r\n')).toEqual([
-      'time,controller,event,severity,kind,port,card,value_raw,threshold_raw,detail',
-      '1970-01-01T00:00:00.000Z,net:test:5200,raised,critical,temperature-high,2,3,99,75,',
+      'time,controller,event,severity,kind,port,card,value,threshold,detail',
+      '1970-01-01T00:00:00.000Z,net:test:5200,raised,critical,temperature-high,2,3,99,70,',
       '',
     ]);
-    expect(readingsToCsv([])).toBe('time,controller,port,card,state,temperature_raw,humidity_raw,voltage_raw,error\r\n');
+    expect(readingsToCsv([])).toBe(
+      'time,controller,port,card,state,temperature_c,humidity_pct,voltage_v,temperature_raw,temperature_flags_raw,humidity_raw,voltage_raw,error\r\n',
+    );
   });
 });
 
@@ -281,7 +315,7 @@ describe('monitor logic (pure)', () => {
 
 function block(): Buffer {
   const b = Buffer.alloc(ALL_STATUS_LENGTH);
-  b[O.tempValid] = 1;
+  b[O.tempValid] = 0x80;
   b[O.tempValue] = 41;
   b[O.humidity] = 55;
   b[O.voltage] = 50;
@@ -290,29 +324,36 @@ function block(): Buffer {
 
 describe('decoders', () => {
   it('decodes the 4-byte scan-card word little-endian: [tempValid, temp, humidity, voltage]', () => {
-    const word = Buffer.from([1, 41, 55, 50]).readUInt32LE(0);
-    expect(decodeScanCardWord(word)).toEqual({ temperatureRaw: 41, humidityRaw: 55, voltageRaw: 50 });
+    const word = Buffer.from([0x80, 41, 55, 50]).readUInt32LE(0);
+    expect(decodeScanCardWord(word)).toEqual({ temperatureRaw: 41, temperatureFlagsRaw: 0x80, humidityRaw: 55, voltageRaw: 50 });
     // top bit set must not go negative
-    expect(decodeScanCardWord(Buffer.from([1, 0, 0, 200]).readUInt32LE(0))).toMatchObject({ voltageRaw: 200 });
-    // valid byte 0 -> no temperature
+    expect(decodeScanCardWord(Buffer.from([0x80, 0, 0, 200]).readUInt32LE(0))).toMatchObject({ voltageRaw: 200 });
+    // negative sign (bit0) is kept in the flags byte
+    expect(decodeScanCardWord(Buffer.from([0x81, 41, 55, 50]).readUInt32LE(0))).toMatchObject({ temperatureRaw: 41, temperatureFlagsRaw: 0x81 });
+    // valid bit clear (also the old "any non-zero byte" case 0x01) -> no temperature
     expect(decodeScanCardWord(Buffer.from([0, 41, 55, 50]).readUInt32LE(0))).toEqual({ humidityRaw: 55, voltageRaw: 50 });
+    expect(decodeScanCardWord(Buffer.from([1, 41, 55, 50]).readUInt32LE(0))).not.toHaveProperty('temperatureRaw');
   });
 
   it('decodes the 82-byte block without a monitor card', () => {
-    expect(decodeAllStatus(block())).toEqual({ temperatureRaw: 41, humidityRaw: 55, voltageRaw: 50 });
+    expect(decodeAllStatus(block())).toEqual({ temperatureRaw: 41, temperatureFlagsRaw: 0x80, humidityRaw: 55, voltageRaw: 50 });
     const b = block();
     b[O.tempValid] = 0;
+    expect(decodeAllStatus(b)).not.toHaveProperty('temperatureRaw');
+    b[O.tempValid] = 0x01; // sign bit without the valid bit is still invalid
     expect(decodeAllStatus(b)).not.toHaveProperty('temperatureRaw');
     // monitor-card bytes are ignored when the card says no monitor card is attached
     const c = block();
     c[O.monitorFan] = 9;
     expect(decodeAllStatus(c)).not.toHaveProperty('monitorCard');
+    c[O.monitorCardExists] = 1; // only 0xFF means attached
+    expect(decodeAllStatus(c)).not.toHaveProperty('monitorCard');
   });
 
   it('decodes an attached monitor card from the documented offsets', () => {
     const b = block();
-    b[O.monitorCardExists] = 1;
-    b[O.monitorTempValid] = 1;
+    b[O.monitorCardExists] = 0xff;
+    b[O.monitorTempValid] = 0x81; // valid, negative
     b[O.monitorTempValue] = 33;
     b[O.monitorHumidity] = 44;
     b[O.monitorSmoke] = 1;
@@ -323,6 +364,7 @@ describe('decoders', () => {
     const { monitorCard } = decodeAllStatus(b);
     expect(monitorCard).toEqual({
       temperatureRaw: 33,
+      temperatureFlagsRaw: 0x81,
       humidityRaw: 44,
       smokeRaw: 1,
       fanRaw: [10, 20, 30, 40],
@@ -333,15 +375,16 @@ describe('decoders', () => {
   });
 
   it('accepts a short block (4 bytes) and rejects anything shorter', () => {
-    expect(decodeAllStatus(Buffer.from([1, 41, 55, 50]))).toEqual({ temperatureRaw: 41, humidityRaw: 55, voltageRaw: 50 });
+    expect(decodeAllStatus(Buffer.from([0x80, 41, 55, 50]))).toEqual({ temperatureRaw: 41, temperatureFlagsRaw: 0x80, humidityRaw: 55, voltageRaw: 50 });
     expect(() => decodeAllStatus(Buffer.from([1, 2, 3]))).toThrow(DeviceError);
   });
 
   it('decodes the function-card monitor block (link, temp, humidity, smoke, 4 fans, 5 voltages)', () => {
-    const b = Buffer.from([2, 1, 38, 60, 1, 11, 12, 13, 14, 21, 22, 23, 24, 25]);
+    const b = Buffer.from([2, 0x80, 38, 60, 1, 11, 12, 13, 14, 21, 22, 23, 24, 25]);
     expect(decodeFuncMonitorInfo(b)).toEqual({
       linkStateRaw: 2,
       monitorTemperatureRaw: 38,
+      monitorTemperatureFlagsRaw: 0x80,
       monitorHumidityRaw: 60,
       smokeRaw: 1,
       fanRaw: [11, 12, 13, 14],
@@ -379,14 +422,14 @@ describe('readMonitorSnapshot against the simulator', () => {
   const seedCard = (port: number, cardIdx: number, v: { temp?: number; humi?: number; volt?: number; monitor?: boolean }): void => {
     const b = Buffer.alloc(ALL_STATUS_LENGTH);
     if (v.temp !== undefined) {
-      b[O.tempValid] = 1;
+      b[O.tempValid] = 0x80;
       b[O.tempValue] = v.temp;
     }
     b[O.humidity] = v.humi ?? 0;
     b[O.voltage] = v.volt ?? 0;
     if (v.monitor) {
-      b[O.monitorCardExists] = 1;
-      b[O.monitorTempValid] = 1;
+      b[O.monitorCardExists] = 0xff;
+      b[O.monitorTempValid] = 0x80;
       b[O.monitorTempValue] = 36;
       b[O.monitorFan] = 99;
       b[O.monitorSmoke] = 0;
@@ -411,6 +454,7 @@ describe('readMonitorSnapshot against the simulator', () => {
     seedCard(0, 0, { temp: 41, humi: 55, volt: 50 });
     seedCard(1, 1, { temp: 63, humi: 20, volt: 48, monitor: true });
     seedCard(1, 0, {}); // temperature block flagged invalid
+    mem(0, 1).write(R.scannerAllStatus, Buffer.alloc(ALL_STATUS_LENGTH)); // the simulator seeds telemetry; clear this card
     const cards = [
       { portIndex: 0, cardIndex: 0 },
       { portIndex: 0, cardIndex: 1 },
@@ -423,7 +467,7 @@ describe('readMonitorSnapshot against the simulator', () => {
 
     expect(s.controllerId).toBe(id);
     expect(s.cards.map((c) => c.state)).toEqual(['online', 'online', 'online', 'online']);
-    expect(s.cards[0]).toMatchObject({ portIndex: 0, cardIndex: 0, temperatureRaw: 41, humidityRaw: 55, voltageRaw: 50 });
+    expect(s.cards[0]).toMatchObject({ portIndex: 0, cardIndex: 0, temperatureRaw: 41, temperatureFlagsRaw: 0x80, humidityRaw: 55, voltageRaw: 50 });
     expect(s.cards[0]).not.toHaveProperty('monitorCard');
     expect(s.cards[1]).not.toHaveProperty('temperatureRaw'); // all-zero block: valid byte 0
     expect(s.cards[2]).not.toHaveProperty('temperatureRaw');
@@ -566,16 +610,18 @@ describe('function card against its own simulator', () => {
       const id = (await service.discover({ netHosts: ['127.0.0.1'] }))[0]!.id;
       await service.connect(id);
       // The simulator ignores the destination byte, so the function card shares the sender memory.
-      sim.state.sendingCard.write(R.funcCardAllStatus, Buffer.from([1, 35, 40, 49]));
-      sim.state.sendingCard.write(R.funcCardMonitorAllInfo, Buffer.from([1, 1, 29, 61, 0, 5, 6, 7, 8, 31, 32, 33, 34, 35]));
+      sim.state.sendingCard.write(R.funcCardAllStatus, Buffer.from([0x80, 35, 40, 49]));
+      sim.state.sendingCard.write(R.funcCardMonitorAllInfo, Buffer.from([1, 0x80, 29, 61, 0, 5, 6, 7, 8, 31, 32, 33, 34, 35]));
       const s = await service.readMonitorSnapshot(id, { cards: [], functionCardAddress: 1 });
       expect(s.functionCard).toEqual({
         state: 'online',
         temperatureRaw: 35,
+        temperatureFlagsRaw: 0x80,
         humidityRaw: 40,
         voltageRaw: 49,
         linkStateRaw: 1,
         monitorTemperatureRaw: 29,
+        monitorTemperatureFlagsRaw: 0x80,
         monitorHumidityRaw: 61,
         smokeRaw: 0,
         fanRaw: [5, 6, 7, 8],
@@ -616,7 +662,7 @@ function scripted(script: Script): SessionLike {
     SetLockMode: async () => undefined,
     close: () => true,
     ReadAllStatus: async () => block(),
-    ReadScanCardAllStatus: async () => Buffer.from([1, 41, 55, 50]).readUInt32LE(0),
+    ReadScanCardAllStatus: async () => Buffer.from([0x80, 41, 55, 50]).readUInt32LE(0),
     ReadBitErrorRateData: async () => Buffer.from([0, 0, 0]),
     ReadSenderDVIStatus: async () => 1,
     ReadTemperature: async () => 30,
@@ -733,13 +779,13 @@ describe('readMonitorSnapshot error handling (scripted session)', () => {
     expect(evaluateSnapshot(s1).map((a) => a.kind)).toEqual(['function-card-error']);
 
     const partial = await withScript({
-      FuncCard_ReadFuncCardAllStatus: async () => Buffer.from([1, 30, 40, 50]).readUInt32LE(0),
+      FuncCard_ReadFuncCardAllStatus: async () => Buffer.from([0x80, 30, 40, 50]).readUInt32LE(0),
       FuncCard_ReadMonitorCardAllInfo: async () => {
         throw responseError();
       },
     });
     const s2 = await partial.svc.readMonitorSnapshot(partial.id, { cards: [], functionCardAddress: 2 });
-    expect(s2.functionCard).toEqual({ state: 'online', temperatureRaw: 30, humidityRaw: 40, voltageRaw: 50 });
+    expect(s2.functionCard).toEqual({ state: 'online', temperatureRaw: 30, temperatureFlagsRaw: 0x80, humidityRaw: 40, voltageRaw: 50 });
   });
 
   it('passes the function-card bus address through as the native addr argument', async () => {
@@ -757,7 +803,7 @@ describe('readMonitorSnapshot error handling (scripted session)', () => {
 
 describe('offline cards keep their alerts (review item 6)', () => {
   it('a hot card going offline does not report its temperature alert as cleared; a real clear needs online + below threshold', () => {
-    const hot = evaluateSnapshot(snap([card(0, 0, { temperatureRaw: 90 })]));
+    const hot = evaluateSnapshot(snap([card(0, 0, { temperatureRaw: 180 })]));
     const off = evaluateSnapshot(snap([card(0, 0, { state: 'offline' })]), DEFAULT_MONITOR_THRESHOLDS, hot);
     expect(diffAlerts(hot, off).map((t) => [t.type, t.alert.kind])).toEqual([['raised', 'card-offline']]);
     expect(off.find((a) => a.kind === 'temperature-high')).toMatchObject({ stale: true, severity: 'critical' });

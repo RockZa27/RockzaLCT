@@ -1,7 +1,8 @@
 // Pure monitoring logic (PLAN.md phase 7): thresholds, alert evaluation, alert transitions between
 // two snapshots, history helpers and CSV export. No runtime deps, no I/O, no clock.
-// All values are RAW register bytes (the library defines no scale), thresholds included.
+// Readings are decoded to real units (units.ts) before they are compared with the thresholds.
 
+import { humidityPct, temperatureC, voltageV } from './units.js';
 import type {
   MonitorCardReading,
   MonitorPortLinkStatus,
@@ -28,57 +29,87 @@ export function portLinkStatus(detected: number, expected: number | null): Monit
 // Thresholds
 // ---------------------------------------------------------------------------------------------
 
-/** `null` disables a limit. Units are the raw register units (no scale is defined by the library). */
+/** `null` disables a limit. Real units: degrees C and volts (decoded with units.ts). */
 export interface MonitorThresholds {
-  /** Raw temperature at/above which a card raises a warning. */
-  temperatureWarnRaw: number | null;
-  /** Raw temperature at/above which a card raises a critical alert. */
-  temperatureCriticalRaw: number | null;
-  /** Raw voltage below which a card raises a warning. */
-  voltageLowRaw: number | null;
-  /** Raw voltage above which a card raises a warning. */
-  voltageHighRaw: number | null;
+  /** Temperature (C) at/above which a card raises a warning. */
+  temperatureWarnC: number | null;
+  /** Temperature (C) at/above which a card raises a critical alert. */
+  temperatureCriticalC: number | null;
+  /** Receiver supply voltage (V) below which a card raises a warning. */
+  voltageLowV: number | null;
+  /** Receiver supply voltage (V) above which a card raises a warning. */
+  voltageHighV: number | null;
 }
 
-/**
- * Starting limits. They are NOT from the library: they assume the raw temperature byte is roughly
- * degrees C (unverified on hardware) and leave voltage unchecked until the user sets limits.
- */
+/** Starting limits (not from NovaStar): 60 C warning / 70 C critical; supply 4.5 V .. 5.5 V. */
 export const DEFAULT_MONITOR_THRESHOLDS: MonitorThresholds = {
-  temperatureWarnRaw: 60,
-  temperatureCriticalRaw: 75,
-  voltageLowRaw: null,
-  voltageHighRaw: null,
+  temperatureWarnC: 60,
+  temperatureCriticalC: 70,
+  voltageLowV: 4.5,
+  voltageHighV: 5.5,
 };
 
-const THRESHOLD_KEYS = ['temperatureWarnRaw', 'temperatureCriticalRaw', 'voltageLowRaw', 'voltageHighRaw'] as const;
+const THRESHOLD_KEYS = ['temperatureWarnC', 'temperatureCriticalC', 'voltageLowV', 'voltageHighV'] as const;
 
-/** Problems with a thresholds object (empty array = valid). Every value is a byte (0..255) or null. */
+/** The byte-wide registers bound the representable range: +-127.5 C and 0..12.7 V. */
+const TEMP_LIMIT_C = 127.5;
+const VOLT_LIMIT_V = 12.7;
+
+/** Problems with a thresholds object (empty array = valid). */
 export function validateThresholds(t: MonitorThresholds): string[] {
   const errors: string[] = [];
   for (const key of THRESHOLD_KEYS) {
     const v = t[key];
     if (v === null) continue;
-    if (typeof v !== 'number' || !Number.isInteger(v) || v < 0 || v > 255) {
-      errors.push(`${key} must be an integer 0..255 or empty`);
+    const max = key.startsWith('temperature') ? TEMP_LIMIT_C : VOLT_LIMIT_V;
+    const min = key.startsWith('temperature') ? -TEMP_LIMIT_C : 0;
+    if (typeof v !== 'number' || !Number.isFinite(v) || v < min || v > max) {
+      errors.push(`${key} must be a number ${min}..${max} or empty`);
     }
   }
-  if (t.temperatureWarnRaw !== null && t.temperatureCriticalRaw !== null && t.temperatureWarnRaw > t.temperatureCriticalRaw) {
-    errors.push('temperatureWarnRaw must not exceed temperatureCriticalRaw');
+  if (t.temperatureWarnC !== null && t.temperatureCriticalC !== null && t.temperatureWarnC > t.temperatureCriticalC) {
+    errors.push('temperatureWarnC must not exceed temperatureCriticalC');
   }
-  if (t.voltageLowRaw !== null && t.voltageHighRaw !== null && t.voltageLowRaw >= t.voltageHighRaw) {
-    errors.push('voltageLowRaw must be below voltageHighRaw');
+  if (t.voltageLowV !== null && t.voltageHighV !== null && t.voltageLowV >= t.voltageHighV) {
+    errors.push('voltageLowV must be below voltageHighV');
   }
   return errors;
 }
 
-/** Parse stored JSON; anything invalid falls back to the defaults (never throws). */
+/**
+ * Old (raw register unit) thresholds, stored before real units were known. Converted with the
+ * documented scales (temperature byte x 0.5 C, voltage byte x 0.1 V), i.e. the limit keeps firing at
+ * the same register value. The old shipped defaults (60 / 75 / off / off) were never a user choice
+ * and would turn into a meaningless 30 / 37.5 C, so exactly that combination maps to the new defaults.
+ */
+const LEGACY_KEYS = ['temperatureWarnRaw', 'temperatureCriticalRaw', 'voltageLowRaw', 'voltageHighRaw'] as const;
+
+function migrateLegacy(obj: Record<string, unknown>): MonitorThresholds | null {
+  if (!LEGACY_KEYS.some((k) => k in obj) || THRESHOLD_KEYS.some((k) => k in obj)) return null;
+  const num = (k: (typeof LEGACY_KEYS)[number]): number | null => {
+    const v = obj[k];
+    return typeof v === 'number' && Number.isFinite(v) ? v : null;
+  };
+  const [tw, tc, vl, vh] = LEGACY_KEYS.map(num) as [number | null, number | null, number | null, number | null];
+  if (tw === 60 && tc === 75 && vl === null && vh === null) return { ...DEFAULT_MONITOR_THRESHOLDS };
+  const round1 = (n: number): number => Math.round(n * 10) / 10;
+  return {
+    temperatureWarnC: tw === null ? null : tw * 0.5,
+    temperatureCriticalC: tc === null ? null : tc * 0.5,
+    voltageLowV: vl === null ? null : round1(vl * 0.1),
+    voltageHighV: vh === null ? null : round1(vh * 0.1),
+  };
+}
+
+/** Parse stored JSON (current or legacy raw format); anything invalid falls back to the defaults (never throws). */
 export function parseThresholds(json: string | null | undefined): MonitorThresholds {
   if (!json) return { ...DEFAULT_MONITOR_THRESHOLDS };
   try {
     const raw: unknown = JSON.parse(json);
     if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return { ...DEFAULT_MONITOR_THRESHOLDS };
     const obj = raw as Record<string, unknown>;
+    const legacy = migrateLegacy(obj);
+    if (legacy) return validateThresholds(legacy).length === 0 ? legacy : { ...DEFAULT_MONITOR_THRESHOLDS };
     const out = { ...DEFAULT_MONITOR_THRESHOLDS };
     for (const key of THRESHOLD_KEYS) {
       if (!(key in obj)) continue;
@@ -115,9 +146,9 @@ export interface MonitorAlert {
   severity: AlertSeverity;
   portIndex?: number;
   cardIndex?: number;
-  /** Offending raw value (temperature / voltage / detected card count). */
+  /** Offending value: degrees C (temperature), volts (voltage) or the detected card count. */
   value?: number;
-  /** The limit that was crossed (raw), or the expected card count. */
+  /** The limit that was crossed (C / V), or the expected card count. */
   threshold?: number;
   /** Device error text for offline / error alerts. */
   detail?: string;
@@ -131,6 +162,11 @@ export interface MonitorAlert {
 /** Alert keys of a card whose reading disappears while the card is offline / in error. */
 const isCardReadingAlert = (key: string): boolean => /^card:\d+:\d+:(temperature|voltage)$/.test(key);
 const cardStateKeyOf = (key: string): string => key.slice(0, key.lastIndexOf(':')) + ':state';
+
+/** Card temperature in C, or null when the reading is absent / flagged invalid. A missing flags byte means valid, positive. */
+export function cardTemperatureC(c: { temperatureRaw?: number; temperatureFlagsRaw?: number }): number | null {
+  return c.temperatureRaw === undefined ? null : temperatureC(c.temperatureFlagsRaw ?? 0x80, c.temperatureRaw);
+}
 
 export const severityRank = (s: AlertSeverity): number => (s === 'critical' ? 2 : 1);
 
@@ -190,22 +226,22 @@ export function evaluateSnapshot(
       carryStale(base);
       continue;
     }
-    const t = c.temperatureRaw;
-    if (t !== undefined) {
-      const crit = thresholds.temperatureCriticalRaw;
-      const warn = thresholds.temperatureWarnRaw;
+    const t = cardTemperatureC(c);
+    if (t !== null) {
+      const crit = thresholds.temperatureCriticalC;
+      const warn = thresholds.temperatureWarnC;
       if (crit !== null && t >= crit) {
         alerts.push({ key: `${base}:temperature`, kind: 'temperature-high', severity: 'critical', ...where, value: t, threshold: crit });
       } else if (warn !== null && t >= warn) {
         alerts.push({ key: `${base}:temperature`, kind: 'temperature-high', severity: 'warning', ...where, value: t, threshold: warn });
       }
     }
-    const v = c.voltageRaw;
-    if (v !== undefined) {
-      if (thresholds.voltageLowRaw !== null && v < thresholds.voltageLowRaw) {
-        alerts.push({ key: `${base}:voltage`, kind: 'voltage-low', severity: 'warning', ...where, value: v, threshold: thresholds.voltageLowRaw });
-      } else if (thresholds.voltageHighRaw !== null && v > thresholds.voltageHighRaw) {
-        alerts.push({ key: `${base}:voltage`, kind: 'voltage-high', severity: 'warning', ...where, value: v, threshold: thresholds.voltageHighRaw });
+    const v = c.voltageRaw === undefined ? null : voltageV(c.voltageRaw);
+    if (v !== null) {
+      if (thresholds.voltageLowV !== null && v < thresholds.voltageLowV) {
+        alerts.push({ key: `${base}:voltage`, kind: 'voltage-low', severity: 'warning', ...where, value: v, threshold: thresholds.voltageLowV });
+      } else if (thresholds.voltageHighV !== null && v > thresholds.voltageHighV) {
+        alerts.push({ key: `${base}:voltage`, kind: 'voltage-high', severity: 'warning', ...where, value: v, threshold: thresholds.voltageHighV });
       }
     }
   }
@@ -302,11 +338,11 @@ export interface TrendPoint {
   value: number | null;
 }
 
-/** Temperature series of one card across snapshots (oldest first). */
+/** Temperature series (degrees C) of one card across snapshots (oldest first). */
 export function temperatureSeries(history: readonly MonitorSnapshot[], portIndex: number, cardIndex: number): TrendPoint[] {
   return history.map((s) => {
     const c = s.cards.find((x) => x.portIndex === portIndex && x.cardIndex === cardIndex);
-    return { at: s.takenAt, value: c && c.state === 'online' && c.temperatureRaw !== undefined ? c.temperatureRaw : null };
+    return { at: s.takenAt, value: c && c.state === 'online' ? cardTemperatureC(c) : null };
   });
 }
 
@@ -329,15 +365,25 @@ const csvRow = (cells: ReadonlyArray<string | number | undefined | null>): strin
 
 const iso = (ms: number): string => new Date(ms).toISOString();
 
-/** One row per card per snapshot. Values are raw register bytes (no unit conversion). */
+/** One row per card per snapshot: real units plus the raw bytes they were decoded from. */
 export function readingsToCsv(history: readonly MonitorSnapshot[]): string {
   const lines = [
-    csvRow(['time', 'controller', 'port', 'card', 'state', 'temperature_raw', 'humidity_raw', 'voltage_raw', 'error']),
+    csvRow([
+      'time', 'controller', 'port', 'card', 'state',
+      'temperature_c', 'humidity_pct', 'voltage_v',
+      'temperature_raw', 'temperature_flags_raw', 'humidity_raw', 'voltage_raw', 'error',
+    ]),
   ];
   for (const s of history) {
     for (const c of s.cards) {
+      const hum = c.humidityRaw === undefined ? null : humidityPct(c.humidityRaw);
+      const volt = c.voltageRaw === undefined ? null : voltageV(c.voltageRaw);
       lines.push(
-        csvRow([iso(s.takenAt), s.controllerId, c.portIndex, c.cardIndex, c.state, c.temperatureRaw, c.humidityRaw, c.voltageRaw, c.error]),
+        csvRow([
+          iso(s.takenAt), s.controllerId, c.portIndex, c.cardIndex, c.state,
+          cardTemperatureC(c), hum, volt,
+          c.temperatureRaw, c.temperatureFlagsRaw, c.humidityRaw, c.voltageRaw, c.error,
+        ]),
       );
     }
   }
@@ -346,7 +392,7 @@ export function readingsToCsv(history: readonly MonitorSnapshot[]): string {
 
 /** One row per alert transition. */
 export function alertEventsToCsv(events: readonly MonitorAlertEvent[]): string {
-  const lines = [csvRow(['time', 'controller', 'event', 'severity', 'kind', 'port', 'card', 'value_raw', 'threshold_raw', 'detail'])];
+  const lines = [csvRow(['time', 'controller', 'event', 'severity', 'kind', 'port', 'card', 'value', 'threshold', 'detail'])];
   for (const e of events) {
     lines.push(
       csvRow([iso(e.at), e.controllerId, e.type, e.alert.severity, e.alert.kind, e.alert.portIndex, e.alert.cardIndex, e.alert.value, e.alert.threshold, e.alert.detail]),

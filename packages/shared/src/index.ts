@@ -83,6 +83,7 @@ export * from './features/smartSettings.js';
 export * from './features/layout.js';
 export * from './features/persist.js';
 export * from './features/monitor.js';
+export * from './features/units.js';
 export * from './features/hseries.js';
 export * from './features/taurus.js';
 export * from './features/calibration.js';

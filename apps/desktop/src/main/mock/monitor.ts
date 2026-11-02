@@ -39,8 +39,9 @@ function noise(...parts: number[]): number {
 }
 
 /**
- * Plausible monitoring data: temperature around 40 (raw) drifting slowly with a per-card phase,
- * voltage ~50 +-1, humidity ~45, all raw bytes like the real device. Every FAULT_CYCLE snapshots one
+ * Plausible monitoring data as raw bytes like the real device: temperature around 40 C drifting
+ * slowly with a per-card phase (flags 0x80 + magnitude in 0.5 C steps), supply voltage ~5.0 V
+ * (0x80 | 50), humidity ~45 %RH (0x80 | 45). Every FAULT_CYCLE snapshots one
  * card misbehaves for FAULT_LENGTH snapshots: a temperature spike past the default critical
  * threshold, or the card dropping off the chain (offline, and the sender then counts one card less
  * on that port).
@@ -77,14 +78,15 @@ export function createMockMonitor(ctx: MockContext): MonitorApi {
         }
         const phase = portIndex * 1.7 + cardIndex * 0.9;
         let temp = 40 + (portIndex * 3 + cardIndex * 2) % 7 + 3 * Math.sin(n / 5 + phase) + noise(n, portIndex, cardIndex) - 0.5;
-        if (isFaulty) temp += 22 + 12 * (pos - FAULT_FIRST); // ~65 (warning), then ~77+ (critical)
+        if (isFaulty) temp += 22 + 12 * (pos - FAULT_FIRST); // ~62 C (warning), then ~74 C+ (critical)
         return {
           portIndex,
           cardIndex,
           state: 'online',
-          temperatureRaw: Math.max(0, Math.min(255, Math.round(temp))),
-          humidityRaw: Math.round(45 + 4 * Math.sin(n / 9 + phase)),
-          voltageRaw: 50 + Math.round(noise(n, cardIndex, portIndex, 7) * 2) - 1,
+          temperatureFlagsRaw: 0x80,
+          temperatureRaw: Math.max(0, Math.min(255, Math.round(temp * 2))),
+          humidityRaw: 0x80 | Math.round(45 + 4 * Math.sin(n / 9 + phase)),
+          voltageRaw: 0x80 | (50 + Math.round(noise(n, cardIndex, portIndex, 7) * 2) - 1),
         };
       });
 

@@ -6,10 +6,10 @@ import type { MonitorSettings } from './settings';
 type Fields = { [K in keyof MonitorThresholds]: string };
 
 const toFields = (t: MonitorThresholds): Fields => ({
-  temperatureWarnRaw: t.temperatureWarnRaw === null ? '' : String(t.temperatureWarnRaw),
-  temperatureCriticalRaw: t.temperatureCriticalRaw === null ? '' : String(t.temperatureCriticalRaw),
-  voltageLowRaw: t.voltageLowRaw === null ? '' : String(t.voltageLowRaw),
-  voltageHighRaw: t.voltageHighRaw === null ? '' : String(t.voltageHighRaw),
+  temperatureWarnC: t.temperatureWarnC === null ? '' : String(t.temperatureWarnC),
+  temperatureCriticalC: t.temperatureCriticalC === null ? '' : String(t.temperatureCriticalC),
+  voltageLowV: t.voltageLowV === null ? '' : String(t.voltageLowV),
+  voltageHighV: t.voltageHighV === null ? '' : String(t.voltageHighV),
 });
 
 /** Empty -> null (limit off); anything else -> a number (NaN if it is not numeric, caught by validation). */
@@ -31,10 +31,10 @@ export function SettingsPanel({
 
   const save = (): void => {
     const thresholds: MonitorThresholds = {
-      temperatureWarnRaw: parseField(fields.temperatureWarnRaw),
-      temperatureCriticalRaw: parseField(fields.temperatureCriticalRaw),
-      voltageLowRaw: parseField(fields.voltageLowRaw),
-      voltageHighRaw: parseField(fields.voltageHighRaw),
+      temperatureWarnC: parseField(fields.temperatureWarnC),
+      temperatureCriticalC: parseField(fields.temperatureCriticalC),
+      voltageLowV: parseField(fields.voltageLowV),
+      voltageHighV: parseField(fields.voltageHighV),
     };
     const errors = validateThresholds(thresholds);
     const addr = parseField(funcAddr);
@@ -59,8 +59,7 @@ export function SettingsPanel({
       {label}
       <input
         type="number"
-        min={0}
-        max={255}
+        step={key.startsWith('temperature') ? 0.5 : 0.1}
         value={fields[key]}
         aria-label={label}
         onChange={(e) => setFields({ ...fields, [key]: e.target.value })}
@@ -73,10 +72,10 @@ export function SettingsPanel({
       <h2>{t('monitor.settings')}</h2>
       <p className="muted">{t('monitor.settings.hint')}</p>
       <div className="mon-settings-grid">
-        {input('temperatureWarnRaw', t('monitor.settings.tempWarn'))}
-        {input('temperatureCriticalRaw', t('monitor.settings.tempCritical'))}
-        {input('voltageLowRaw', t('monitor.settings.voltLow'))}
-        {input('voltageHighRaw', t('monitor.settings.voltHigh'))}
+        {input('temperatureWarnC', t('monitor.settings.tempWarn'))}
+        {input('temperatureCriticalC', t('monitor.settings.tempCritical'))}
+        {input('voltageLowV', t('monitor.settings.voltLow'))}
+        {input('voltageHighV', t('monitor.settings.voltHigh'))}
         <label className="field">
           {t('monitor.settings.funcAddr')}
           <input
