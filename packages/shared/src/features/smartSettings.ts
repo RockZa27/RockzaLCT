@@ -3,15 +3,19 @@
 // decision logic the wizard uses. Keep this file free of runtime deps (it is bundled into the
 // renderer as well).
 //
-// NOT covered, on purpose: the pixel / point-table mapping (SetModuleScanSequenceInfo,
-// SetTotalPointInTable, SetModuleConfigInfo, SetScanner_*Ram*, SetGenLinearScanBoardRunLineTable).
-// NovaLCT generates those bytes with a proprietary algorithm that is not in the library, so complex or
-// irregular modules still need a module config file made with NovaLCT.
+// The pixel / point-table mapping step (3rd-generation chips: point table 0x03000000, scan sequence
+// 0x1C000100, geometry registers) is in pixelMapping.ts and pixelMappingModel.ts and is part of
+// SmartSettingsApi. NOT covered, on purpose: chip timing / OE / gamma / driver registers and the
+// 4th-generation run-line tables, so complex chips and irregular modules still need a module config
+// file made with NovaLCT.
 
 import type { DeviceErrorCode } from '../index.js';
 import { RECEIVER_LIMITS, type ModuleProfile, type ReceiverParameters, type ReceiverTarget } from './receiver.js';
 
+import { PIXEL_MAPPING_METHODS, type PixelMappingApi } from './pixelMapping.js';
+
 export * from './smartNames.js';
+export * from './pixelMapping.js';
 
 // ---------------------------------------------------------------------------------------------
 // Values
@@ -99,7 +103,7 @@ export interface SmartWriteResult {
   failed?: SmartWriteFailure;
 }
 
-export interface SmartSettingsApi {
+export interface SmartSettingsApi extends PixelMappingApi {
   /**
    * Read every register the wizard can write from one receiving card. Allowed for every user level.
    * All registers are required: if any read fails the whole call rejects, so a snapshot is never partial.
@@ -119,6 +123,7 @@ export interface SmartSettingsApi {
 export const SMART_SETTINGS_METHODS: { [K in keyof SmartSettingsApi]-?: true } = {
   readSmartSnapshot: true,
   writeSmartSettings: true,
+  ...PIXEL_MAPPING_METHODS,
 };
 
 // ---------------------------------------------------------------------------------------------

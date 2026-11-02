@@ -16,6 +16,7 @@ import {
   type DiscoveredController,
   type DisplayMode,
   type HardwareOverrides,
+  type PixelPainter,
   type ReceivingCardInfo,
   type TaurusCredentials,
   type TestPattern,
@@ -23,7 +24,7 @@ import {
 } from '@rockzalct/shared';
 import { createDefaultSessionFactory, DEFAULT_NET_PORT } from './factories.js';
 import type { SessionFactory, SessionLike } from './session.js';
-import type { FeatureContext } from './features/context.js';
+import type { FeatureContext, SessionLease } from './features/context.js';
 import { createLayoutFeature } from './features/layout.js';
 import { createMonitorFeature } from './features/monitor.js';
 import { createCalibrationFeature } from './features/calibration.js';
@@ -126,6 +127,11 @@ export interface DeviceServiceOptions {
   taurusDiscoveryPort?: number;
   /** Replaces the library's UDP broadcast discovery (tests). */
   findTaurusPlayers?: (timeoutMs: number) => Promise<TaurusPlayerInfo[]>;
+  /**
+   * Draws the marking pictures of the Smart Settings pixel-mapping step on a PC display (the desktop
+   * app passes a borderless-window painter). Without it that step cannot light pixels and refuses to start.
+   */
+  pixelPainter?: PixelPainter;
   /** Injection points for tests. */
   findSerialPaths?: () => Promise<string[]>;
   findUdpHosts?: () => Promise<string[]>;
@@ -251,9 +257,9 @@ export function createDeviceService(options: DeviceServiceOptions = {}): DeviceS
     return { entry, session: entry.session };
   };
 
-  /** Controllers whose session is held by an exclusive run (a long multi-write job). */
+  /** Controllers whose session is held by an exclusive run or lease (a long multi-write job, the pixel-mapping wizard). */
   const exclusive = new Set<string>();
-  const busy = (): DeviceError => new DeviceError('PROTOCOL', 'controller is busy with a long operation (configuration file being sent); wait for it to finish');
+  const busy = (): DeviceError => new DeviceError('PROTOCOL', 'controller is busy with a long operation (configuration file being sent or pixel mapping in progress); wait for it to finish');
 
   const runOnSession = async <T>(id: string, fn: (s: SessionLike) => Promise<T>): Promise<T> => {
     const { entry, session } = connected(id);
@@ -263,6 +269,7 @@ export function createDeviceService(options: DeviceServiceOptions = {}): DeviceS
       if (err instanceof DeviceError && err.code === 'NOT_CONNECTED') {
         entry.session = undefined;
         entry.info = undefined;
+        exclusive.delete(id); // a lost connection ends any hold on it
       }
       throw err;
     }
@@ -289,7 +296,30 @@ export function createDeviceService(options: DeviceServiceOptions = {}): DeviceS
     }
   };
 
+  /** Hold the controller across several calls (see SessionLease in features/context.ts). */
+  const acquireExclusive = (id: string): SessionLease => {
+    connected(id);
+    if (exclusive.has(id)) throw busy();
+    exclusive.add(id);
+    let released = false;
+    const held = (): boolean => !released && exclusive.has(id);
+    return {
+      held,
+      release: () => {
+        if (!released) {
+          released = true;
+          exclusive.delete(id);
+        }
+      },
+      run: async (fn) => {
+        if (!held()) throw new DeviceError('NOT_CONNECTED', `not connected: ${id}`);
+        return runOnSession(id, fn);
+      },
+    };
+  };
+
   const closeSession = async (entry: Entry): Promise<void> => {
+    exclusive.delete(entry.controller.id); // closing the connection ends any hold on it
     const session = entry.session;
     entry.session = undefined;
     entry.info = undefined;
@@ -597,6 +627,7 @@ export function createDeviceService(options: DeviceServiceOptions = {}): DeviceS
   const ctx: FeatureContext = {
     withSession,
     withExclusiveSession,
+    acquireExclusive,
     userLevel: () => ({ ...userLevel }),
     timeoutMs,
     hardwareOverrides: () => ({ ...overrides }),
@@ -683,7 +714,7 @@ export function createDeviceService(options: DeviceServiceOptions = {}): DeviceS
   return {
     ...mctrlOnly(createSenderFeature(ctx)),
     ...mctrlOnly(createReceiverFeature(ctx)),
-    ...mctrlOnly(createSmartSettingsFeature(ctx)),
+    ...mctrlOnly(createSmartSettingsFeature(ctx, { ...(options.pixelPainter ? { painter: options.pixelPainter } : {}) })),
     ...mctrlOnly(createLayoutFeature(ctx)),
     ...mctrlOnly(createPersistFeature(ctx)),
     ...mctrlOnly(createMonitorFeature(ctx)),

@@ -41,7 +41,16 @@ const ident: RgbCode = { red: 0, green: 1, blue: 2, virtualRed: 0 };
 
 describe('smart settings: method list and names', () => {
   it('lists every SmartSettingsApi method and every field once', () => {
-    expect(Object.keys(SMART_SETTINGS_METHODS).sort()).toEqual(['readSmartSnapshot', 'writeSmartSettings']);
+    expect(Object.keys(SMART_SETTINGS_METHODS).sort()).toEqual([
+      'cancelPixelMapping',
+      'finishPixelMapping',
+      'getPixelMappingStatus',
+      'lightPixelMappingStep',
+      'listPixelDisplays',
+      'readSmartSnapshot',
+      'startPixelMapping',
+      'writeSmartSettings',
+    ]);
     expect(new Set(SMART_FIELDS).size).toBe(SMART_FIELDS.length);
     expect([...SMART_FIELDS].sort()).toEqual(Object.keys(VALUES).sort());
   });

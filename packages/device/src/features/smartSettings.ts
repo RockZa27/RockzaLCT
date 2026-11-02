@@ -36,6 +36,7 @@ import {
 } from '@rockzalct/shared';
 import type { FeatureContext } from './context.js';
 import type { SessionLike } from '../session.js';
+import { createPixelMappingFeature, type PixelMappingOptions } from './pixelMapping.js';
 
 /**
  * Register address (receiving card, deviceType 1) behind every native call used here. Source:
@@ -99,7 +100,7 @@ const ALL_CARDS = 0xffff;
 
 const invalid = (message: string): DeviceError => new DeviceError('INVALID_ARGUMENT', message);
 
-export function createSmartSettingsFeature(ctx: FeatureContext): SmartSettingsApi {
+export function createSmartSettingsFeature(ctx: FeatureContext, pixelOptions: PixelMappingOptions = {}): SmartSettingsApi {
   const requireAdvanced = (): void => {
     if (ctx.userLevel().level !== 'advanced') {
       throw new DeviceError('PERMISSION', 'advanced user level required to write receiving-card parameters');
@@ -123,6 +124,9 @@ export function createSmartSettingsFeature(ctx: FeatureContext): SmartSettingsAp
   };
 
   return {
+    // The pixel-mapping step (point table + scan sequence); its registers are in pixelMapping.ts.
+    ...createPixelMappingFeature(ctx, pixelOptions),
+
     async readSmartSnapshot(id, portIndex, cardIndex): Promise<SmartSnapshot> {
       const bad = validateReceiverTarget({ scope: 'card', portIndex, cardIndex });
       if (bad) throw invalid(bad);

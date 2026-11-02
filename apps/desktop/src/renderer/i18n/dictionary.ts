@@ -6,6 +6,7 @@ import { calibrationEn, calibrationTh } from './calibration';
 import { maintenanceEn, maintenanceTh } from './maintenance';
 import { novaImportEn, novaImportTh } from './novaImport';
 import { persistEn, persistTh } from './persist';
+import { pmapEn, pmapTh } from './pixelMapping';
 import { receiverEn, receiverTh } from './receiver';
 import { senderEn, senderTh } from './sender';
 import { smartEn, smartTh } from './smartSettings';
@@ -19,6 +20,7 @@ const en = {
   ...taurusEn,
   ...receiverEn,
   ...smartEn,
+  ...pmapEn,
   ...layoutEn,
   ...persistEn,
   ...monitorEn,
@@ -117,6 +119,7 @@ const th: Record<MessageKey, string> = {
   ...taurusTh,
   ...receiverTh,
   ...smartTh,
+  ...pmapTh,
   ...layoutTh,
   ...persistTh,
   ...monitorTh,
