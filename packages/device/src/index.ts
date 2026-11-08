@@ -20,5 +20,8 @@ export { TAURUS_DISCOVERY_PORT, broadcastTaurusDiscovery, probeTaurusHost } from
 export { mapTaurusError } from './taurus/errors.js';
 export { createNovaImportFeature, SCANNER_BUSY_ADDRESS } from './features/novaImport.js';
 export type { NovaImportOptions } from './features/novaImport.js';
+export { createPixelMappingFeature, PIXEL_MAPPING_REGISTERS, PIXEL_MAPPING_DELAYS, PARA_FREEZE } from './features/pixelMapping.js';
+export type { PixelMappingOptions, PixelRegister, PixelRegisterKey } from './features/pixelMapping.js';
+export type { FeatureContext, SessionLease } from './features/context.js';
 export { parseRcfgx, parseScr, knownAddressName, loadScreenLib, readZip } from './features/novaImportParse.js';
 export type { ParsedRcfgx } from './features/novaImportParse.js';

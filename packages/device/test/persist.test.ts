@@ -388,6 +388,14 @@ describe('against the simulator', () => {
   const sender = () => sim.state.sendingCard;
   const writes = (): string[] => calls.filter((c) => /^Set/.test(c.name)).map((c) => c.name);
 
+  // The NovaLCT default for both save registers is 0, which is also what an untouched register holds, so
+  // these tests first fill them with a sentinel: a register that reads 0 afterwards really was written.
+  const PRIME = 0xee;
+  const primeSave = (): void => {
+    for (const k of sim.state.receivingCards) k.memory.write(SAVE_CARD, Buffer.from([PRIME]));
+    sender().write(SAVE_SENDER, Buffer.from([PRIME]));
+  };
+
   const blank = (): void => {
     for (const k of sim.state.receivingCards) {
       for (const addr of Object.values(R)) k.memory.write(addr, Buffer.alloc(2));
@@ -443,46 +451,52 @@ describe('against the simulator', () => {
   describe('saveToHardware', () => {
     it('refuses at normal level before any I/O', async () => {
       await open(false);
+      primeSave();
       const before = sim.state.requestCount;
       await expectCode(service.saveToHardware(id, { scope: 'all' }), 'PERMISSION');
       await expectCode(service.saveToHardware(id, { scope: 'card', portIndex: 0, cardIndex: 0 }), 'PERMISSION');
       await expectCode(service.saveToHardware(id, { scope: 'bogus' } as never), 'PERMISSION');
       expect(sim.state.requestCount).toBe(before);
-      expect(byte(0, 0, SAVE_CARD)).toBe(0);
+      expect(byte(0, 0, SAVE_CARD)).toBe(PRIME);
     });
 
     it('stores one card only, without the sender by default', async () => {
       await open(true);
+      primeSave();
       const res = await service.saveToHardware(id, { scope: 'card', portIndex: 1, cardIndex: 0 });
       expect(res).toEqual({ sender: null, cards: [{ portIndex: 1, cardIndex: 0, ok: true }], ok: true });
       expect(byte(1, 0, SAVE_CARD)).toBe(SAVE_COMMAND_VALUES.receiver);
-      for (const [p, c] of [[0, 0], [0, 1], [1, 1]] as const) expect(byte(p, c, SAVE_CARD)).toBe(0);
+      expect(byte(1, 0, SAVE_CARD)).toBe(0); // NovaLCT writes 0 to 0x01000011
+      for (const [p, c] of [[0, 0], [0, 1], [1, 1]] as const) expect(byte(p, c, SAVE_CARD)).toBe(PRIME);
       expect(byte(0, 0, 0)).toBe(0);
-      expect(sender().readU8(SAVE_SENDER)).toBe(0);
+      expect(sender().readU8(SAVE_SENDER)).toBe(PRIME);
       expect(writes()).toEqual(['SetParameterStore2SpiFlash']);
     });
 
     it('stores every card and the sender for scope all, each card acknowledged separately', async () => {
       await open(true);
+      primeSave();
       const res = await service.saveToHardware(id, { scope: 'all' });
       expect(res.ok).toBe(true);
       expect(res.cards).toHaveLength(4);
       expect(res.sender).toEqual({ ok: true });
-      for (const [p, c] of [[0, 0], [0, 1], [1, 0], [1, 1]] as const) expect(byte(p, c, SAVE_CARD)).toBe(1);
-      expect(sender().readU8(SAVE_SENDER)).toBe(1);
+      // default bytes are the ones NovaLCT writes: 0 to 0x01000011 (each card) and 0 to 0x01000001 (sender)
+      for (const [p, c] of [[0, 0], [0, 1], [1, 0], [1, 1]] as const) expect(byte(p, c, SAVE_CARD)).toBe(0);
+      expect(sender().readU8(SAVE_SENDER)).toBe(0);
       // per-card, not broadcast: the 4 card writes are addressed
       const cardCalls = calls.filter((c) => c.name === 'SetParameterStore2SpiFlash');
       expect(cardCalls.map((c) => [c.args[1], c.args[2], c.args[3]])).toEqual([[0, 0, false], [0, 1, false], [1, 0, false], [1, 1, false]]);
     });
 
-    it('lets a card scope include the sender and overrides the UNVERIFIED values per call', async () => {
+    it('lets a card scope include the sender and overrides the default values per call', async () => {
       await open(true);
+      primeSave();
       await service.saveToHardware(id, { scope: 'card', portIndex: 0, cardIndex: 1 }, { includeSender: true, senderValue: 0xa5, receiverValue: 2 });
       expect(byte(0, 1, SAVE_CARD)).toBe(2);
       expect(sender().readU8(SAVE_SENDER)).toBe(0xa5);
       await service.saveToHardware(id, { scope: 'all' }, { includeSender: false });
       expect(sender().readU8(SAVE_SENDER)).toBe(0xa5); // untouched
-      expect(byte(1, 1, SAVE_CARD)).toBe(1);
+      expect(byte(1, 1, SAVE_CARD)).toBe(0); // default (NovaLCT) value
     });
 
     it('rejects bad targets and options without touching the device', async () => {
@@ -504,15 +518,16 @@ describe('against the simulator', () => {
 
     it('reports a failing card per card and keeps going', async () => {
       await open(true);
+      primeSave();
       failIf = (c) => c.name === 'SetParameterStore2SpiFlash' && c.args[1] === 0 && c.args[2] === 1;
       const res = await service.saveToHardware(id, { scope: 'all' });
       expect(res.ok).toBe(false);
       expect(res.cards.map((r) => r.ok)).toEqual([true, false, true, true]);
       expect(res.cards[1]).toMatchObject({ portIndex: 0, cardIndex: 1, ok: false, code: 'PROTOCOL' });
       expect(res.sender).toEqual({ ok: true });
-      expect(byte(0, 0, SAVE_CARD)).toBe(1);
-      expect(byte(0, 1, SAVE_CARD)).toBe(0);
-      expect(byte(1, 1, SAVE_CARD)).toBe(1);
+      expect(byte(0, 0, SAVE_CARD)).toBe(0);
+      expect(byte(0, 1, SAVE_CARD)).toBe(PRIME); // the failing card was not written
+      expect(byte(1, 1, SAVE_CARD)).toBe(0);
     });
 
     it('honours a service-wide override of the command values', async () => {
@@ -537,7 +552,7 @@ describe('against the simulator', () => {
       } finally {
         session.close();
       }
-      expect(SAVE_COMMAND_VALUES).toEqual({ sender: 1, receiver: 1 });
+      expect(SAVE_COMMAND_VALUES).toEqual({ sender: 0, receiver: 0 });
     });
   });
 
@@ -790,6 +805,7 @@ describe('against the simulator', () => {
     it('optionally saves to hardware at the end, only after everything else succeeded', async () => {
       const golden = await capture();
       await configure(columns(), 100, { width: 1280, height: 720 });
+      primeSave();
       calls.length = 0;
       const res = await service.applyScreenConfig(id, golden, { saveToHardware: true });
       expect(res.ok).toBe(true);
@@ -799,7 +815,7 @@ describe('against the simulator', () => {
       expect(names.indexOf('SetParameterStore2SpiFlash')).toBeGreaterThan(names.lastIndexOf('SetPortEnable'));
       expect(names.filter((n) => n === 'SetParameterStore2SpiFlash')).toHaveLength(4);
       expect(names.filter((n) => n === 'SetSaveSendCardsParameters')).toHaveLength(1);
-      for (const [p, c] of [[0, 0], [0, 1], [1, 0], [1, 1]] as const) expect(byte(p, c, SAVE_CARD)).toBe(1);
+      for (const [p, c] of [[0, 0], [0, 1], [1, 0], [1, 1]] as const) expect(byte(p, c, SAVE_CARD)).toBe(0);
 
       // a failed apply never saves
       await configure(columns(), 100, { width: 1280, height: 720 });

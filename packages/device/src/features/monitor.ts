@@ -37,8 +37,9 @@ import type { SessionLike } from '../session.js';
  * `Request(<length>)`). "receiving" = `req.deviceType = 1`, addressed by port + card index;
  * "sender" = no deviceType set (sending card, deviceType 0).
  *
- * The library defines BYTE POSITIONS only. No file in dist/ gives a unit, scale or offset for any
- * temperature / humidity / voltage / fan value, so everything is reported raw.
+ * The library defines BYTE POSITIONS only. The scales come from the protocol notes (Q7) and are
+ * applied by the decoders in @rockzalct/shared units.ts; this file keeps the raw bytes (valid bit
+ * included) and only decides whether the temperature pair is valid (flags bit7).
  */
 export const MONITOR_REGISTERS = {
   /** ReadAllStatus.cjs, receiving, 82 bytes @ 167772160 (Scanner_AllMonitorDataAddr, Occupancy 82). */
@@ -129,30 +130,37 @@ type Bytes = ArrayLike<number>;
 const slice = (data: Bytes, from: number, count: number): number[] => Array.from({ length: count }, (_, i) => data[from + i] ?? 0);
 
 /** Decode the 4-byte word of ReadScanCardAllStatus (decodeUIntLE: byte 0 is the least significant). */
-export function decodeScanCardWord(word: number): Pick<MonitorCardReading, 'temperatureRaw' | 'humidityRaw' | 'voltageRaw'> {
+export function decodeScanCardWord(word: number): Pick<MonitorCardReading, 'temperatureRaw' | 'temperatureFlagsRaw' | 'humidityRaw' | 'voltageRaw'> {
   const w = word >>> 0;
-  const out: Pick<MonitorCardReading, 'temperatureRaw' | 'humidityRaw' | 'voltageRaw'> = {
+  const out: Pick<MonitorCardReading, 'temperatureRaw' | 'temperatureFlagsRaw' | 'humidityRaw' | 'voltageRaw'> = {
     humidityRaw: (w >>> 16) & 0xff,
     voltageRaw: (w >>> 24) & 0xff,
   };
-  // [valid, value]; a zero valid byte means the card has no usable temperature (same rule as
-  // receiver.ts getReceiverParameters). Byte order inside the block is UNVERIFIED on hardware.
-  if ((w & 0xff) !== 0) out.temperatureRaw = (w >>> 8) & 0xff;
+  // Pair [flags, magnitude]: flags bit7 = valid, bit0 = negative (notes Q7); same rule as
+  // receiver.ts getReceiverParameters. Byte order inside the block is UNVERIFIED on hardware.
+  if (((w & 0xff) & 0x80) !== 0) {
+    out.temperatureRaw = (w >>> 8) & 0xff;
+    out.temperatureFlagsRaw = w & 0xff;
+  }
   return out;
 }
 
 /** Decode the 82-byte ReadAllStatus block; throws when it is shorter than the 4 scan-card bytes. */
 export function decodeAllStatus(
   data: Bytes,
-): Pick<MonitorCardReading, 'temperatureRaw' | 'humidityRaw' | 'voltageRaw' | 'monitorCard'> {
+): Pick<MonitorCardReading, 'temperatureRaw' | 'temperatureFlagsRaw' | 'humidityRaw' | 'voltageRaw' | 'monitorCard'> {
   const o = ALL_STATUS_OFFSETS;
   if (data.length < 4) throw new DeviceError('PROTOCOL', `short monitor block (${data.length} bytes)`);
-  const out: Pick<MonitorCardReading, 'temperatureRaw' | 'humidityRaw' | 'voltageRaw' | 'monitorCard'> = {
+  const out: Pick<MonitorCardReading, 'temperatureRaw' | 'temperatureFlagsRaw' | 'humidityRaw' | 'voltageRaw' | 'monitorCard'> = {
     humidityRaw: data[o.humidity]!,
     voltageRaw: data[o.voltage]!,
   };
-  if (data[o.tempValid] !== 0) out.temperatureRaw = data[o.tempValue]!;
-  if (data.length >= ALL_STATUS_LENGTH && data[o.monitorCardExists] !== 0) {
+  if ((data[o.tempValid]! & 0x80) !== 0) {
+    out.temperatureRaw = data[o.tempValue]!;
+    out.temperatureFlagsRaw = data[o.tempValid]!;
+  }
+  // 0xFF at +0x20 = a monitor card is attached (notes Q7).
+  if (data.length >= ALL_STATUS_LENGTH && data[o.monitorCardExists] === 0xff) {
     const mc: MonitorAttachedCard = {
       humidityRaw: data[o.monitorHumidity]!,
       smokeRaw: data[o.monitorSmoke]!,
@@ -161,7 +169,10 @@ export function decodeAllStatus(
       generalStatusRaw: data[o.monitorGeneralStatus]!,
       moduleStatusRaw: slice(data, o.monitorModuleStatus, o.monitorModuleStatusCount),
     };
-    if (data[o.monitorTempValid] !== 0) mc.temperatureRaw = data[o.monitorTempValue]!;
+    if ((data[o.monitorTempValid]! & 0x80) !== 0) {
+      mc.temperatureRaw = data[o.monitorTempValue]!;
+      mc.temperatureFlagsRaw = data[o.monitorTempValid]!;
+    }
     out.monitorCard = mc;
   }
   return out;
@@ -170,7 +181,7 @@ export function decodeAllStatus(
 /** Decode FuncCard_ReadMonitorCardAllInfo (14 bytes, see FUNC_MONITOR_INFO_LENGTH). */
 export function decodeFuncMonitorInfo(
   data: Bytes,
-): Pick<MonitorFunctionCardReading, 'linkStateRaw' | 'monitorTemperatureRaw' | 'monitorHumidityRaw' | 'smokeRaw' | 'fanRaw' | 'voltageRawList'> {
+): Pick<MonitorFunctionCardReading, 'linkStateRaw' | 'monitorTemperatureRaw' | 'monitorTemperatureFlagsRaw' | 'monitorHumidityRaw' | 'smokeRaw' | 'fanRaw' | 'voltageRawList'> {
   if (data.length < FUNC_MONITOR_INFO_LENGTH) {
     throw new DeviceError('PROTOCOL', `short function-card monitor block (${data.length} bytes)`);
   }
@@ -181,7 +192,11 @@ export function decodeFuncMonitorInfo(
     fanRaw: slice(data, 5, 4),
     voltageRawList: slice(data, 9, 5),
   };
-  if (data[1] !== 0) out.monitorTemperatureRaw = data[2]!;
+  // Assumed to use the same [flags, magnitude] pair as the receiving-card block (not separately confirmed).
+  if ((data[1]! & 0x80) !== 0) {
+    out.monitorTemperatureRaw = data[2]!;
+    out.monitorTemperatureFlagsRaw = data[1]!;
+  }
   return out;
 }
 

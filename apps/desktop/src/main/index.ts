@@ -1,8 +1,9 @@
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { app, BrowserWindow, dialog, ipcMain } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, screen } from 'electron';
 import type { DeviceApi } from '@rockzalct/shared';
 import { getDeviceApi } from './deviceFactory';
+import { createPixelPainter } from './pixelPainter';
 import { registerDeviceIpc } from './ipc';
 import { resolveSmokeOut, runStartup } from './startup';
 import { SMOKE_SCR_BASE64 } from './smokeFixture';
@@ -93,7 +94,28 @@ void runStartup({
   logError: (...args) => console.error(...args),
   onSmokeFail: (err) => smokeResult(`SMOKE FAIL ${describeErr(err)}`, false),
   boot: () => {
-    const api = getDeviceApi(undefined, { userDataDir: app.getPath('userData') });
+    const pixelPainter = createPixelPainter({
+      screen,
+      // A borderless black window that never takes focus: it only carries the marking pixel.
+      createWindow: (bounds) => {
+        const w = new BrowserWindow({
+          ...bounds,
+          frame: false,
+          show: false,
+          resizable: false,
+          movable: false,
+          focusable: false,
+          skipTaskbar: true,
+          alwaysOnTop: true,
+          fullscreenable: false,
+          backgroundColor: '#000000',
+          webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true },
+        });
+        w.setAlwaysOnTop(true, 'screen-saver');
+        return w;
+      },
+    });
+    const api = getDeviceApi(undefined, { userDataDir: app.getPath('userData'), pixelPainter });
     registerDeviceIpc(ipcMain, api);
     const win = createWindow();
     if (SMOKE) runSmokeTest(win, api);

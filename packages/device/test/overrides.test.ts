@@ -21,25 +21,26 @@ import { DISPLAY_MODE_VALUES, createDeviceService, createNetSessionFactory, type
 import { CALIBRATION_COMMAND_VALUES } from '../src/features/calibration.js';
 import { SAVE_COMMAND_VALUES } from '../src/features/persist.js';
 import { decodeScannerXY, scannerXyWriteArgs } from '../src/features/layout.js';
-import { layoutFixture, recordingSession, XY_WORD_X_HIGH, type Call } from './overridesHarness.js';
+import { layoutFixture, recordingSession, XY_WORD_X_LOW, type Call } from './overridesHarness.js';
 
 // ---------------------------------------------------------------------------------------------
-// Byte-identical defaults.
+// Pinned defaults.
 //
-// GOLDEN was recorded by running the same script against the code as it was BEFORE the advanced
-// hardware settings existed (commit 4cdcb2c): every session call, with its arguments, that
-// blackout / freeze / normal, save-to-hardware, erase, calibration enable + read and layout
-// write + read produce. The session stands in for the codec Session, so these calls are exactly the
-// requests the codec encodes. With default overrides the new code must reproduce them unchanged.
+// GOLDEN holds every session call, with its arguments, that blackout / freeze / normal,
+// save-to-hardware, erase, calibration enable + read and layout write + read produce with the default
+// overrides. The session stands in for the codec Session, so these calls are exactly the requests the
+// codec encodes. The defaults are the values NovaLCT itself writes (blackout/freeze 255, save 0,
+// card position bytes X lo, X hi, Y lo, Y hi); they were 1 / 1 / 1 / x-high before, so this table
+// was re-recorded for them (the other entries did not change).
 
 export const GOLDEN: Record<string, Call[]> = {
   "blackout": [
-    ['SetKillMode', 0, 255, 65535, true, 1],
+    ['SetKillMode', 0, 255, 65535, true, 255],
     ['SetLockMode', 0, 255, 65535, true, 0],
   ],
   "freeze": [
     ['SetKillMode', 0, 255, 65535, true, 0],
-    ['SetLockMode', 0, 255, 65535, true, 1],
+    ['SetLockMode', 0, 255, 65535, true, 255],
   ],
   "normal": [
     ['SetKillMode', 0, 255, 65535, true, 0],
@@ -51,8 +52,8 @@ export const GOLDEN: Record<string, Call[]> = {
     ['ReadPortWidth', 0, 0],
     ['ReadPortHeight', 0, 0],
     ['ReadNumberOfCardOrScanBoardInPort', 0, 0, 0],
-    ['SetParameterStore2SpiFlash', 0, 0, 1, false, 1],
-    ['SetSaveSendCardsParameters', 0, false, 1],
+    ['SetParameterStore2SpiFlash', 0, 0, 1, false, 0],
+    ['SetSaveSendCardsParameters', 0, false, 0],
   ],
   "erase": [
     ['SetCoefficientInSpiFlashErase', 0, 0, 1, false, 0],
@@ -76,13 +77,13 @@ export const GOLDEN: Record<string, Call[]> = {
     ['SetEthernetPortScannerXY', 0, false, 0, 0, 0, 0],
     ['SetControlWidth', 0, 0, 0, false, 128],
     ['SetControlHeight', 0, 0, 0, false, 64],
-    ['SetEthernetPortScannerXY', 0, false, 128, 0, 0, 1],
+    ['SetEthernetPortScannerXY', 0, false, 0, 128, 0, 1],
     ['SetControlWidth', 0, 0, 1, false, 128],
     ['SetControlHeight', 0, 0, 1, false, 64],
-    ['SetEthernetPortScannerXY', 0, false, 128, 64, 0, 2],
+    ['SetEthernetPortScannerXY', 0, false, 64, 128, 0, 2],
     ['SetControlWidth', 0, 0, 2, false, 128],
     ['SetControlHeight', 0, 0, 2, false, 64],
-    ['SetEthernetPortScannerXY', 0, false, 0, 64, 0, 3],
+    ['SetEthernetPortScannerXY', 0, false, 64, 0, 0, 3],
     ['SetControlWidth', 0, 0, 3, false, 128],
     ['SetControlHeight', 0, 0, 3, false, 64],
   ],
@@ -116,7 +117,7 @@ export const GOLDEN: Record<string, Call[]> = {
 
 type Options = Parameters<typeof createDeviceService>[0];
 
-async function open(extra: Options = {}, xyWord: number = XY_WORD_X_HIGH): Promise<{ svc: DeviceService; id: string; calls: Call[] }> {
+async function open(extra: Options = {}, xyWord: number = XY_WORD_X_LOW): Promise<{ svc: DeviceService; id: string; calls: Call[] }> {
   const calls: Call[] = [];
   const session = recordingSession(calls, xyWord);
   const svc = createDeviceService({
@@ -171,7 +172,7 @@ async function runScript(svc: DeviceService, id: string, calls: Call[]): Promise
   return out;
 }
 
-describe('defaults are byte-identical to the behaviour before the advanced settings existed', () => {
+describe('defaults are the NovaLCT values and produce exactly the recorded requests', () => {
   it('produces exactly the recorded requests (blackout, freeze, save, erase, calibration, layout write/read)', async () => {
     const { svc, id, calls } = await open();
     await svc.login('admin');
@@ -181,14 +182,14 @@ describe('defaults are byte-identical to the behaviour before the advanced setti
   it('also holds after set -> reset (reset really restores the defaults)', async () => {
     const { svc, id, calls } = await open();
     await svc.login('admin');
-    await svc.setHardwareOverrides({ killOn: 9, saveReceiver: 7, eraseSpiFlash: 3, correctionEnabledBit: 0x10, correctionBrightnessTypeBit: 0x20, scannerXyOrder: 'x-low' });
+    await svc.setHardwareOverrides({ killOn: 9, saveReceiver: 7, eraseSpiFlash: 3, correctionEnabledBit: 0x10, correctionBrightnessTypeBit: 0x20, scannerXyOrder: 'x-high' });
     await svc.resetHardwareOverrides();
     expect(await runScript(svc, id, calls)).toEqual(GOLDEN);
   });
 
   it('the legacy constants still equal the defaults', () => {
-    expect(DISPLAY_MODE_VALUES).toEqual({ killOn: 1, killOff: 0, lockOn: 1, lockOff: 0 });
-    expect(SAVE_COMMAND_VALUES).toEqual({ sender: 1, receiver: 1 });
+    expect(DISPLAY_MODE_VALUES).toEqual({ killOn: 255, killOff: 0, lockOn: 255, lockOff: 0 });
+    expect(SAVE_COMMAND_VALUES).toEqual({ sender: 0, receiver: 0 });
     expect(CALIBRATION_COMMAND_VALUES).toEqual({ eraseSpiFlash: 0 });
     expect(CORRECTION_STATE_BITS).toEqual({ enabled: 1, brightnessType: 2 });
     expect(DEFAULT_HARDWARE_OVERRIDES).toEqual({
@@ -201,7 +202,7 @@ describe('defaults are byte-identical to the behaviour before the advanced setti
       eraseSpiFlash: CALIBRATION_COMMAND_VALUES.eraseSpiFlash,
       correctionEnabledBit: CORRECTION_STATE_BITS.enabled,
       correctionBrightnessTypeBit: CORRECTION_STATE_BITS.brightnessType,
-      scannerXyOrder: 'x-high',
+      scannerXyOrder: 'x-low',
     });
   });
 });
@@ -248,7 +249,7 @@ describe('validator, merge and file format (shared)', () => {
     const base = good();
     const merged = mergeHardwareOverrides(base, { killOn: 5, lockOn: undefined });
     expect(merged).toEqual({ ...base, killOn: 5 });
-    expect(base.killOn).toBe(1);
+    expect(base.killOn).toBe(255);
     expect(resolveHardwareOverrides(base, { correctionEnabledBit: 2 })).toMatchObject({ ok: false }); // collides with brightnessType = 2
     expect(resolveHardwareOverrides(base, { correctionEnabledBit: 2, correctionBrightnessTypeBit: 8 })).toMatchObject({ ok: true });
     const evil = JSON.parse('{"__proto__": {"killOn": 1}}') as Partial<HardwareOverrides>;
@@ -258,8 +259,8 @@ describe('validator, merge and file format (shared)', () => {
 
   it('diffs only changed keys, in display order', () => {
     expect(diffHardwareOverrides(good(), { ...good(), lockOn: 2, killOn: 3 })).toEqual([
-      { key: 'killOn', from: 1, to: 3 },
-      { key: 'lockOn', from: 1, to: 2 },
+      { key: 'killOn', from: 255, to: 3 },
+      { key: 'lockOn', from: 255, to: 2 },
     ]);
     expect(HARDWARE_OVERRIDE_KEYS).toHaveLength(Object.keys(DEFAULT_HARDWARE_OVERRIDES).length);
   });
@@ -329,7 +330,7 @@ describe('service: permissions, validation and call-time reading', () => {
     await svc.login('admin');
     await svc.setDisplayMode(id, 'blackout');
     expect(calls).toEqual([
-      ['SetKillMode', 0, 255, 65535, true, 1],
+      ['SetKillMode', 0, 255, 65535, true, 255],
       ['SetLockMode', 0, 255, 65535, true, 0],
     ]);
     calls.length = 0;
@@ -401,7 +402,7 @@ describe('service: permissions, validation and call-time reading', () => {
     expect(err!.message).toBe('applied for this session only; could not be saved: disk full');
     expect((await svc.getHardwareOverrides()).lockOn).toBe(2); // still in effect
     await svc.resetHardwareOverrides(); // hook no longer throws
-    expect(seen.map((v) => v.lockOn)).toEqual([2, 1]);
+    expect(seen.map((v) => v.lockOn)).toEqual([2, 255]);
   });
 
   it('a rejecting async hook on reset also applies then rejects (item 8)', async () => {
@@ -410,7 +411,7 @@ describe('service: permissions, validation and call-time reading', () => {
     await svc.setHardwareOverrides({ lockOn: 2 }).catch(() => undefined);
     const msg = await svc.resetHardwareOverrides().then(() => '', (e: Error) => e.message);
     expect(msg).toBe('applied for this session only; could not be saved: EACCES');
-    expect((await svc.getHardwareOverrides()).lockOn).toBe(1);
+    expect((await svc.getHardwareOverrides()).lockOn).toBe(255);
   });
 
   it('constructor options become the initial values (legacy displayModeValues, then hardwareOverrides on top)', async () => {
@@ -429,10 +430,10 @@ describe('service: permissions, validation and call-time reading', () => {
 describe('receiving-card X/Y word order', () => {
   it('decodeScannerXY and scannerXyWriteArgs are mirror images', () => {
     const b = Buffer.alloc(4);
-    b.writeUInt32LE(((300 << 16) | 70) >>> 0);
-    expect(decodeScannerXY(b)).toEqual({ x: 300, y: 70 }); // default = x-high, as before
-    expect(decodeScannerXY(b, 'x-high')).toEqual({ x: 300, y: 70 });
-    expect(decodeScannerXY(b, 'x-low')).toEqual({ x: 70, y: 300 });
+    b.writeUInt32LE(((70 << 16) | 300) >>> 0);
+    expect(decodeScannerXY(b)).toEqual({ x: 300, y: 70 }); // default = x-low (NovaLCT entry layout)
+    expect(decodeScannerXY(b, 'x-low')).toEqual({ x: 300, y: 70 });
+    expect(decodeScannerXY(b, 'x-high')).toEqual({ x: 70, y: 300 });
     expect(scannerXyWriteArgs(300, 70, 'x-high')).toEqual([300, 70]);
     expect(scannerXyWriteArgs(300, 70, 'x-low')).toEqual([70, 300]);
     for (const order of ['x-high', 'x-low'] as const) {
@@ -444,20 +445,34 @@ describe('receiving-card X/Y word order', () => {
     }
   });
 
-  it('x-low: reads the same word the other way round, and writes the swapped arguments', async () => {
-    const { svc, id, calls } = await open({ hardwareOverrides: { scannerXyOrder: 'x-low' } });
+  it('NovaLCT entry bytes: x = 0x0102, y = 0x0304 go on the wire as 02 01 04 03 (default order) and decode back', () => {
+    // The library encodes SetEthernetPortScannerXY(a, b) as the little-endian word (a << 16) + b.
+    const [a, b] = scannerXyWriteArgs(0x0102, 0x0304, DEFAULT_HARDWARE_OVERRIDES.scannerXyOrder);
+    const wire = Buffer.alloc(4);
+    wire.writeUInt32LE(((a << 16) + b) >>> 0);
+    expect([...wire]).toEqual([0x02, 0x01, 0x04, 0x03]);
+    expect(decodeScannerXY(wire)).toEqual({ x: 0x0102, y: 0x0304 });
+    // the old order, still selectable, puts the same position on the wire as 04 03 02 01
+    const [oa, ob] = scannerXyWriteArgs(0x0102, 0x0304, 'x-high');
+    const old = Buffer.alloc(4);
+    old.writeUInt32LE(((oa << 16) + ob) >>> 0);
+    expect([...old]).toEqual([0x04, 0x03, 0x02, 0x01]);
+  });
+
+  it('x-high (the old order): reads the same word the other way round, and writes the arguments unswapped', async () => {
+    const { svc, id, calls } = await open({ hardwareOverrides: { scannerXyOrder: 'x-high' } });
     await svc.login('admin');
     const hw = await svc.readLayout(id);
-    expect(hw.cards[0]).toMatchObject({ x: 70, y: 300 }); // canned word is (300 << 16) | 70
+    expect(hw.cards[0]).toMatchObject({ x: 70, y: 300 }); // canned word is (70 << 16) | 300
     calls.length = 0;
     await svc.writeLayout(id, layoutFixture());
     const writes = calls.filter((c) => c[0] === 'SetEthernetPortScannerXY');
-    // card 2 sits at x = 128, y = 64: handed to the library as (y, x)
+    // card 2 sits at x = 128, y = 64: handed to the library as (x, y)
     expect(writes.map((c) => c.slice(3, 7))).toEqual([
       [0, 0, 0, 0],
-      [0, 128, 0, 1],
-      [64, 128, 0, 2],
-      [64, 0, 0, 3],
+      [128, 0, 0, 1],
+      [128, 64, 0, 2],
+      [0, 64, 0, 3],
     ]);
   });
 
@@ -465,9 +480,9 @@ describe('receiving-card X/Y word order', () => {
     const { svc, id } = await open();
     await svc.login('admin');
     expect((await svc.readLayout(id)).cards[0]).toMatchObject({ x: 300, y: 70 });
-    await svc.setHardwareOverrides({ scannerXyOrder: 'x-low' });
-    expect((await svc.readLayout(id)).cards[0]).toMatchObject({ x: 70, y: 300 });
     await svc.setHardwareOverrides({ scannerXyOrder: 'x-high' });
+    expect((await svc.readLayout(id)).cards[0]).toMatchObject({ x: 70, y: 300 });
+    await svc.setHardwareOverrides({ scannerXyOrder: 'x-low' });
     expect((await svc.readLayout(id)).cards[0]).toMatchObject({ x: 300, y: 70 });
   });
 });

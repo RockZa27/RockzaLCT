@@ -1,6 +1,7 @@
 import type { MonitorFunctionCardReading, MonitorSenderReading } from '@rockzalct/shared';
 import { useI18n } from '../../i18n/I18nProvider';
-import { bytes } from './format';
+import { Reading } from './Reading';
+import { showFan, showHumidity, showList, showSmoke, showTemp, showVoltage } from './format';
 
 const show = (v: number | undefined): string => (v === undefined ? '-' : String(v));
 
@@ -82,7 +83,9 @@ export function SenderPanel({
                 <div className="kv-row">
                   <dt>{t('monitor.function.own')}</dt>
                   <dd data-testid="function-own">
-                    {show(functionCard.temperatureRaw)} / {show(functionCard.humidityRaw)} / {show(functionCard.voltageRaw)}
+                    <Reading shown={showTemp(functionCard.temperatureFlagsRaw, functionCard.temperatureRaw)} /> /{' '}
+                    <Reading shown={showHumidity(functionCard.humidityRaw)} /> /{' '}
+                    <Reading shown={showVoltage(functionCard.voltageRaw)} />
                   </dd>
                 </div>
                 <div className="kv-row">
@@ -91,23 +94,38 @@ export function SenderPanel({
                 </div>
                 <div className="kv-row">
                   <dt>{t('monitor.function.monitorTemp')}</dt>
-                  <dd>{show(functionCard.monitorTemperatureRaw)}</dd>
+                  <dd>
+                    <Reading shown={showTemp(functionCard.monitorTemperatureFlagsRaw, functionCard.monitorTemperatureRaw)} />
+                  </dd>
                 </div>
                 <div className="kv-row">
                   <dt>{t('monitor.function.monitorHumidity')}</dt>
-                  <dd>{show(functionCard.monitorHumidityRaw)}</dd>
+                  <dd>
+                    <Reading shown={showHumidity(functionCard.monitorHumidityRaw)} />
+                  </dd>
                 </div>
                 <div className="kv-row">
                   <dt>{t('monitor.function.smoke')}</dt>
-                  <dd data-testid="function-smoke">{show(functionCard.smokeRaw)}</dd>
+                  <dd data-testid="function-smoke">
+                    <Reading
+                      shown={{
+                        text: showSmoke(functionCard.smokeRaw).alarm === null ? null : t(showSmoke(functionCard.smokeRaw).alarm ? 'monitor.smoke.alarm' : 'monitor.smoke.ok'),
+                        raw: showSmoke(functionCard.smokeRaw).raw,
+                      }}
+                    />
+                  </dd>
                 </div>
                 <div className="kv-row">
                   <dt>{t('monitor.function.fans')}</dt>
-                  <dd data-testid="function-fans">{bytes(functionCard.fanRaw)}</dd>
+                  <dd data-testid="function-fans">
+                    <Reading shown={showList(functionCard.fanRaw, showFan)} />
+                  </dd>
                 </div>
                 <div className="kv-row">
                   <dt>{t('monitor.function.voltages')}</dt>
-                  <dd>{bytes(functionCard.voltageRawList)}</dd>
+                  <dd>
+                    <Reading shown={showList(functionCard.voltageRawList, (b) => showVoltage(b))} />
+                  </dd>
                 </div>
               </>
             )}

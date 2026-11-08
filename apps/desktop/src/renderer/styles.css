@@ -367,3 +367,45 @@ th {
   padding: 0 8px;
   font-size: 0.75rem;
 }
+
+/* Smart Settings > pixel mapping: marking grid */
+.pmap-grid {
+  display: grid;
+  gap: 1px;
+  max-height: 60vh;
+  overflow: auto;
+  padding: 2px;
+  width: fit-content;
+  max-width: 100%;
+  border: 1px solid var(--border, #888);
+}
+.pmap-grid:focus-visible {
+  outline: 2px solid var(--accent, #2563eb);
+}
+.pmap-cell {
+  box-sizing: border-box;
+  width: 1.6rem;
+  height: 1.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.6rem;
+  border: 1px solid var(--border, #888);
+  cursor: pointer;
+  user-select: none;
+}
+.pmap-cell.marked {
+  background: var(--accent, #2563eb);
+  color: var(--accent-text, #fff);
+}
+.pmap-cell.cursor {
+  outline: 2px solid var(--accent, #2563eb);
+  outline-offset: -2px;
+}
+.pmap-hex {
+  display: block;
+  max-height: 8rem;
+  overflow: auto;
+  word-break: break-all;
+  font-size: 0.75rem;
+}

@@ -7,11 +7,14 @@ export function ConfirmDialog({
   children,
   onConfirm,
   onCancel,
+  confirmDisabled = false,
 }: {
   title: string;
   children: ReactNode;
   onConfirm(): void;
   onCancel(): void;
+  /** Keeps the confirm button off until something else (a tick box) is done. */
+  confirmDisabled?: boolean;
 }) {
   const { t } = useI18n();
   return (
@@ -23,7 +26,7 @@ export function ConfirmDialog({
           <button type="button" autoFocus onClick={onCancel}>
             {t('persist.confirm.cancel')}
           </button>
-          <button type="button" className="primary" onClick={onConfirm}>
+          <button type="button" className="primary" disabled={confirmDisabled} onClick={onConfirm}>
             {t('persist.confirm.ok')}
           </button>
         </div>

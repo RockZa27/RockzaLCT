@@ -156,7 +156,7 @@ describe('PersistPage: save to hardware', () => {
     const { api } = await open();
     expect(screen.getByRole('button', { name: 'Save to hardware…' })).toBeDisabled();
     expect(screen.getAllByText(/needs an advanced login/).length).toBeGreaterThan(0);
-    expect(screen.getByText(/not documented by the device library/)).toBeInTheDocument();
+    expect(screen.getByText(/NovaLCT writes, not yet tested on hardware/)).toBeInTheDocument();
     expect(api.saveToHardware).not.toHaveBeenCalled();
   });
 

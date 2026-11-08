@@ -173,12 +173,12 @@ describe('connected controller', () => {
     await service.setTestPattern(id, 'blue');
 
     await service.setDisplayMode(id, 'blackout');
-    expect(regs(KILL_ADDR)).toEqual([1, 1, 1, 1]);
+    expect(regs(KILL_ADDR)).toEqual([255, 255, 255, 255]);
     expect(regs(LOCK_ADDR)).toEqual([0, 0, 0, 0]);
 
     await service.setDisplayMode(id, 'freeze');
     expect(regs(KILL_ADDR)).toEqual([0, 0, 0, 0]);
-    expect(regs(LOCK_ADDR)).toEqual([1, 1, 1, 1]);
+    expect(regs(LOCK_ADDR)).toEqual([255, 255, 255, 255]);
 
     await service.setDisplayMode(id, 'normal');
     expect(regs(KILL_ADDR)).toEqual([0, 0, 0, 0]);

@@ -1,5 +1,5 @@
 import * as taurusLib from '@novastar/taurus';
-import type { DeviceApi, HardwareOverrides } from '@rockzalct/shared';
+import type { DeviceApi, HardwareOverrides, PixelPainter } from '@rockzalct/shared';
 import { createDeviceService } from '@rockzalct/device';
 import { startHSeriesSimulator, startSimulator, startTaurusSimulator } from '@rockzalct/simulator';
 import { createMockDevice } from './mockDevice';
@@ -50,9 +50,10 @@ const backends: Record<string, (opts: DeviceFactoryOptions) => DeviceApi> = {
       ...(store
         ? { hardwareOverrides: store.load(), onHardwareOverridesChange: persistOverrides(store) }
         : {}),
+      ...(opts.pixelPainter ? { pixelPainter: opts.pixelPainter } : {}),
     });
   },
-  sim: () =>
+  sim: (opts) =>
     deferred(
       Promise.all([
         startSimulator({ port: 0, host: '127.0.0.1' }),
@@ -74,6 +75,7 @@ const backends: Record<string, (opts: DeviceFactoryOptions) => DeviceApi> = {
           taurusDiscovery: true,
           taurusDiscoveryPort: tsim.discoveryPort,
           serialDiscovery: false,
+          ...(opts.pixelPainter ? { pixelPainter: opts.pixelPainter } : {}),
         }),
       ),
     ),
@@ -104,6 +106,8 @@ export function resolveDeviceName(
 export interface DeviceFactoryOptions {
   /** Electron's userData directory; the `real` back end keeps hardware-overrides.json there. Absent = nothing persisted. */
   userDataDir?: string;
+  /** Draws the Smart Settings marking pictures on a PC display (real and sim back ends; the mock has its own). */
+  pixelPainter?: PixelPainter;
 }
 
 export function getDeviceApi(

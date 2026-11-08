@@ -41,7 +41,16 @@ const ident: RgbCode = { red: 0, green: 1, blue: 2, virtualRed: 0 };
 
 describe('smart settings: method list and names', () => {
   it('lists every SmartSettingsApi method and every field once', () => {
-    expect(Object.keys(SMART_SETTINGS_METHODS).sort()).toEqual(['readSmartSnapshot', 'writeSmartSettings']);
+    expect(Object.keys(SMART_SETTINGS_METHODS).sort()).toEqual([
+      'cancelPixelMapping',
+      'finishPixelMapping',
+      'getPixelMappingStatus',
+      'lightPixelMappingStep',
+      'listPixelDisplays',
+      'readSmartSnapshot',
+      'startPixelMapping',
+      'writeSmartSettings',
+    ]);
     expect(new Set(SMART_FIELDS).size).toBe(SMART_FIELDS.length);
     expect([...SMART_FIELDS].sort()).toEqual(Object.keys(VALUES).sort());
   });
@@ -87,26 +96,27 @@ describe('smart settings: computeRgbCode', () => {
     expect(computeRgbCode(ident, obs('blue', 'green', 'red'))).toMatchObject({ ok: true, code: { red: 2, green: 1, blue: 0 } });
   });
 
-  it('handles the two 3-cycles distinctly; the inverse convention gives the other answer', () => {
+  it('handles the two 3-cycles distinctly; the default is the inverse convention (NovaLCT wizard design), normal gives the other answer', () => {
     // red->green, green->blue, blue->red
     const seen = obs('green', 'blue', 'red');
-    expect(computeRgbCode(ident, seen)).toMatchObject({ ok: true, code: { red: 2, green: 0, blue: 1 } });
-    expect(computeRgbCode(ident, seen, 'inverse')).toMatchObject({ ok: true, code: { red: 1, green: 2, blue: 0 } });
+    expect(computeRgbCode(ident, seen)).toMatchObject({ ok: true, code: { red: 1, green: 2, blue: 0 } });
+    expect(computeRgbCode(ident, seen)).toEqual(computeRgbCode(ident, seen, 'inverse'));
+    expect(computeRgbCode(ident, seen, 'normal')).toMatchObject({ ok: true, code: { red: 2, green: 0, blue: 1 } });
     // red->blue, green->red, blue->green
     const other = obs('blue', 'red', 'green');
-    expect(computeRgbCode(ident, other)).toMatchObject({ ok: true, code: { red: 1, green: 2, blue: 0 } });
-    expect(computeRgbCode(ident, other, 'inverse')).toMatchObject({ ok: true, code: { red: 2, green: 0, blue: 1 } });
+    expect(computeRgbCode(ident, other)).toMatchObject({ ok: true, code: { red: 2, green: 0, blue: 1 } });
+    expect(computeRgbCode(ident, other, 'normal')).toMatchObject({ ok: true, code: { red: 1, green: 2, blue: 0 } });
     // swaps are the same in both conventions
-    expect(computeRgbCode(ident, obs('green', 'red', 'blue'), 'inverse')).toEqual(computeRgbCode(ident, obs('green', 'red', 'blue')));
+    expect(computeRgbCode(ident, obs('green', 'red', 'blue'), 'normal')).toEqual(computeRgbCode(ident, obs('green', 'red', 'blue')));
   });
 
   it('composes with a non-default current code and keeps virtualRed', () => {
     const cur: RgbCode = { red: 1, green: 2, blue: 0, virtualRed: 2 };
     // with the current code the panel shows everything correctly -> unchanged, same code, virtualRed kept
-    const same = computeRgbCode(cur, obs('red', 'green', 'blue'));
+    const same = computeRgbCode(cur, obs('red', 'green', 'blue'), 'normal');
     expect(same).toEqual({ ok: true, code: cur, unchanged: true, baseAssumed: false });
-    // now red and green appear swapped: new r[X] = cur[T^-1[X]]
-    const next = computeRgbCode(cur, obs('green', 'red', 'blue'));
+    // (normal convention) now red and green appear swapped: new r[X] = cur[T^-1[X]]
+    const next = computeRgbCode(cur, obs('green', 'red', 'blue'), 'normal');
     expect(next).toMatchObject({ ok: true, code: { red: 2, green: 1, blue: 0, virtualRed: 2 } });
     // the result is always a permutation
     if (next.ok) expect(isRgbPermutation(next.code)).toBe(true);
@@ -136,7 +146,7 @@ describe('smart settings: computeRgbCode', () => {
         const rCur = [cur.red, cur.green, cur.blue];
         // normal model: data X goes to slot r[X]; wiring shows slot k as colour W[k]
         const seenNormal = [0, 1, 2].map((x) => names[W[rCur[x]!]!]!);
-        const a = computeRgbCode(cur, obs(seenNormal[0]!, seenNormal[1]!, seenNormal[2]!));
+        const a = computeRgbCode(cur, obs(seenNormal[0]!, seenNormal[1]!, seenNormal[2]!), 'normal');
         expect(a.ok).toBe(true);
         if (a.ok) {
           const next = [a.code.red, a.code.green, a.code.blue];

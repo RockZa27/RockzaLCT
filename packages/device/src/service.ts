@@ -9,12 +9,14 @@ import {
   percentToRaw,
   resolveHardwareOverrides,
   rawToPercent,
+  receiverModelName,
   type BrightnessState,
   type ControllerInfo,
   type DeviceApi,
   type DiscoveredController,
   type DisplayMode,
   type HardwareOverrides,
+  type PixelPainter,
   type ReceivingCardInfo,
   type TaurusCredentials,
   type TestPattern,
@@ -22,7 +24,7 @@ import {
 } from '@rockzalct/shared';
 import { createDefaultSessionFactory, DEFAULT_NET_PORT } from './factories.js';
 import type { SessionFactory, SessionLike } from './session.js';
-import type { FeatureContext } from './features/context.js';
+import type { FeatureContext, SessionLease } from './features/context.js';
 import { createLayoutFeature } from './features/layout.js';
 import { createMonitorFeature } from './features/monitor.js';
 import { createCalibrationFeature } from './features/calibration.js';
@@ -66,16 +68,16 @@ const TEST_PATTERN_MODE: Record<TestPattern, number> = {
  * Byte values written by setDisplayMode via SetKillMode (blackout, receiving-card register
  * 0x02000100) and SetLockMode (freeze, register 0x02000102).
  *
- * UNVERIFIED ON HARDWARE. @novastar/native documents no on/off values for these registers. Evidence
- * used: both registers are 1 byte (AddressMapping.d.mts KillModeOccupancy/LockModeOccupancy = 1),
- * the decompiled structs expose `IsKillMode` as a boolean (ScanBoardRegionInfo.d.mts), and
- * ControlModeTypeEnum (ControlModeType.d.mts) is Normal=0, Black=1, Lock=2. So off=0 and on=1 was
- * chosen for both; if hardware wants lock=2 override `displayModeValues.lockOn` in the options.
+ * Taken from NovaLCT, NOT yet tested on hardware. NovaLCT writes 255 for blackout and 0 for normal
+ * (ScanBoardAccessor ProtocolLibV3Command.SetKillMode), and 255 / 0 for freeze (lock) on / off
+ * (ProtocolLibV3Command, same file). The ControlModeType enum (Normal 0, Black 1, Lock 2) is not
+ * what NovaLCT writes to these registers. Both registers are 1 byte. Override with
+ * `displayModeValues` in the options, or at run time via the advanced hardware settings.
  */
 export const DISPLAY_MODE_VALUES = {
-  killOn: 1,
+  killOn: 255,
   killOff: 0,
-  lockOn: 1,
+  lockOn: 255,
   lockOff: 0,
 } as const;
 
@@ -85,7 +87,7 @@ export interface DeviceServiceOptions {
   /** Initial value of DISPLAY_MODE_VALUES (changeable later with setHardwareOverrides). */
   displayModeValues?: Partial<DisplayModeValues>;
   /**
-   * Initial advanced hardware settings (unverified protocol values), applied over the defaults and
+   * Initial advanced hardware settings (protocol values from NovaLCT, not yet tested on hardware), applied over the defaults and
    * over `displayModeValues`. Changeable at run time with setHardwareOverrides; invalid values throw
    * INVALID_ARGUMENT from createDeviceService.
    */
@@ -125,6 +127,11 @@ export interface DeviceServiceOptions {
   taurusDiscoveryPort?: number;
   /** Replaces the library's UDP broadcast discovery (tests). */
   findTaurusPlayers?: (timeoutMs: number) => Promise<TaurusPlayerInfo[]>;
+  /**
+   * Draws the marking pictures of the Smart Settings pixel-mapping step on a PC display (the desktop
+   * app passes a borderless-window painter). Without it that step cannot light pixels and refuses to start.
+   */
+  pixelPainter?: PixelPainter;
   /** Injection points for tests. */
   findSerialPaths?: () => Promise<string[]>;
   findUdpHosts?: () => Promise<string[]>;
@@ -250,9 +257,9 @@ export function createDeviceService(options: DeviceServiceOptions = {}): DeviceS
     return { entry, session: entry.session };
   };
 
-  /** Controllers whose session is held by an exclusive run (a long multi-write job). */
+  /** Controllers whose session is held by an exclusive run or lease (a long multi-write job, the pixel-mapping wizard). */
   const exclusive = new Set<string>();
-  const busy = (): DeviceError => new DeviceError('PROTOCOL', 'controller is busy with a long operation (configuration file being sent); wait for it to finish');
+  const busy = (): DeviceError => new DeviceError('PROTOCOL', 'controller is busy with a long operation (configuration file being sent or pixel mapping in progress); wait for it to finish');
 
   const runOnSession = async <T>(id: string, fn: (s: SessionLike) => Promise<T>): Promise<T> => {
     const { entry, session } = connected(id);
@@ -262,6 +269,7 @@ export function createDeviceService(options: DeviceServiceOptions = {}): DeviceS
       if (err instanceof DeviceError && err.code === 'NOT_CONNECTED') {
         entry.session = undefined;
         entry.info = undefined;
+        exclusive.delete(id); // a lost connection ends any hold on it
       }
       throw err;
     }
@@ -288,7 +296,30 @@ export function createDeviceService(options: DeviceServiceOptions = {}): DeviceS
     }
   };
 
+  /** Hold the controller across several calls (see SessionLease in features/context.ts). */
+  const acquireExclusive = (id: string): SessionLease => {
+    connected(id);
+    if (exclusive.has(id)) throw busy();
+    exclusive.add(id);
+    let released = false;
+    const held = (): boolean => !released && exclusive.has(id);
+    return {
+      held,
+      release: () => {
+        if (!released) {
+          released = true;
+          exclusive.delete(id);
+        }
+      },
+      run: async (fn) => {
+        if (!held()) throw new DeviceError('NOT_CONNECTED', `not connected: ${id}`);
+        return runOnSession(id, fn);
+      },
+    };
+  };
+
   const closeSession = async (entry: Entry): Promise<void> => {
+    exclusive.delete(entry.controller.id); // closing the connection ends any hold on it
     const session = entry.session;
     entry.session = undefined;
     entry.info = undefined;
@@ -458,8 +489,14 @@ export function createDeviceService(options: DeviceServiceOptions = {}): DeviceS
         } catch (err) {
           if (!(err instanceof ResponseError)) throw err; // card did not answer: keep going
         }
-        // No receiving-card model register/table exists in @novastar/native.
-        receivingCards.push({ portIndex, cardIndex, model: 'Unknown', firmwareVersion });
+        let model = 'Unknown';
+        try {
+          const modelId = await session.ReadScanCardModle?.(SENDER, portIndex, cardIndex);
+          if (modelId !== undefined) model = receiverModelName(modelId);
+        } catch (err) {
+          if (!(err instanceof ResponseError)) throw err; // card did not answer: keep going
+        }
+        receivingCards.push({ portIndex, cardIndex, model, firmwareVersion });
       }
     }
     return {
@@ -590,6 +627,7 @@ export function createDeviceService(options: DeviceServiceOptions = {}): DeviceS
   const ctx: FeatureContext = {
     withSession,
     withExclusiveSession,
+    acquireExclusive,
     userLevel: () => ({ ...userLevel }),
     timeoutMs,
     hardwareOverrides: () => ({ ...overrides }),
@@ -676,7 +714,7 @@ export function createDeviceService(options: DeviceServiceOptions = {}): DeviceS
   return {
     ...mctrlOnly(createSenderFeature(ctx)),
     ...mctrlOnly(createReceiverFeature(ctx)),
-    ...mctrlOnly(createSmartSettingsFeature(ctx)),
+    ...mctrlOnly(createSmartSettingsFeature(ctx, { ...(options.pixelPainter ? { painter: options.pixelPainter } : {}) })),
     ...mctrlOnly(createLayoutFeature(ctx)),
     ...mctrlOnly(createPersistFeature(ctx)),
     ...mctrlOnly(createMonitorFeature(ctx)),

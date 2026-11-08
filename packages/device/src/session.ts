@@ -12,6 +12,8 @@ export interface SessionLike {
   ReadScanerCountOfSenderCard(addr: number): Promise<Buffer>;
   ReadNumberOfCardOrScanBoardInPort(addr: number, portIndex: number, cardType: number): Promise<number>;
   ReadScanner_McuProgramEdition(addr: number, portAddr: number, scanBoardAddr: number): Promise<number>;
+  /** Receiving-card model id (ReadScanCardModle.cjs: receiver register 0x00000000, 2 bytes LE). Optional so older test fakes stay valid. */
+  ReadScanCardModle?(addr: number, portAddr: number, scanBoardAddr: number): Promise<number>;
   ReadAllBrightnessInfo(addr: number, portAddr: number, scanBoardAddr: number): Promise<Buffer>;
   SetGlobalBrightness(
     addr: number,

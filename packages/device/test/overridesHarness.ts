@@ -11,12 +11,14 @@ export const layoutFixture = (): LayoutModel => {
 
 /** Word the fake sender returns for ReadEthernetPortScannerXY: x = 300, y = 70 with x in the high half. */
 export const XY_WORD_X_HIGH = ((300 << 16) | 70) >>> 0;
+/** Same position with x in the LOW half (wire bytes X lo, X hi, Y lo, Y hi: what NovaLCT writes; the default order). */
+export const XY_WORD_X_LOW = ((70 << 16) | 300) >>> 0;
 
 /**
  * A session that records every call as [name, ...args] and answers reads with canned values. It
  * stands in for the codec Session, so what is recorded is exactly what the real codec would encode.
  */
-export function recordingSession(calls: Call[], xyWord: number = XY_WORD_X_HIGH): SessionLike {
+export function recordingSession(calls: Call[], xyWord: number = XY_WORD_X_LOW): SessionLike {
   const canned: Record<string, (...a: unknown[]) => unknown> = {
     ReadControllerModelId: () => 0x660,
     ReadSender_McuProgramEdition: () => 0x01020300,

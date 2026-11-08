@@ -83,12 +83,14 @@ export * from './features/smartSettings.js';
 export * from './features/layout.js';
 export * from './features/persist.js';
 export * from './features/monitor.js';
+export * from './features/units.js';
 export * from './features/hseries.js';
 export * from './features/taurus.js';
 export * from './features/calibration.js';
 export * from './features/maintenance.js';
 export * from './features/overrides.js';
 export * from './features/novaImport.js';
+export * from './receiverModels.js';
 
 /** Operations exposed to the renderer over IPC. All methods may reject with DeviceError. */
 export interface DeviceApi extends SenderApi, ReceiverApi, SmartSettingsApi, LayoutApi, PersistApi, MonitorApi, HSeriesApi, TaurusApi, CalibrationApi, MaintenanceApi, OverridesApi, NovaImportApi {

@@ -395,7 +395,9 @@ export type CardModelMatch = 'match' | 'mismatch' | 'unknown';
 export function compareCardModel(fileModel: string | null, cardModel: string | undefined): CardModelMatch {
   if (!fileModel || !cardModel || /^unknown\b/i.test(cardModel.trim())) return 'unknown';
   const norm = (s: string): string => s.replace(/\s*\(mock\)\s*$/i, '').trim().toLowerCase();
-  return norm(fileModel) === norm(cardModel) ? 'match' : 'mismatch';
+  // One model id can stand for several cards ("NV7516 / NV7520", see receiverModels.ts): any may match.
+  const names = norm(cardModel).split(' / ').map((n) => n.trim());
+  return names.includes(norm(fileModel)) ? 'match' : 'mismatch';
 }
 
 // ---------------------------------------------------------------------------------------------

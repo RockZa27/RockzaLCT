@@ -45,7 +45,7 @@ function Shell() {
       {page === 'taurus' && <TaurusPage />}
       {page === 'sender' && <SenderPage />}
       {page === 'receiver' && <ReceiverPage />}
-      {page === 'smart' && <SmartSettingsPage />}
+      {page === 'smart' && <SmartSettingsPage onNavigate={setPage} />}
       {page === 'layout' && <LayoutPage />}
       {page === 'persist' && <PersistPage />}
       {page === 'import' && <NovaImportPage onNavigate={setPage} />}

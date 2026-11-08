@@ -71,20 +71,20 @@ beforeEach(() => localStorage.clear());
 afterEach(() => vi.restoreAllMocks());
 
 describe('AdvancedSettingsPage: what is shown', () => {
-  it('lists every value with current, default, explanation, checklist step and a red UNVERIFIED tag', async () => {
+  it('lists every value with current, default, explanation, checklist step and a red "from NovaLCT, not tested" tag', async () => {
     await open();
-    expect(screen.getAllByText('UNVERIFIED')).toHaveLength(OVERRIDE_META.length);
+    expect(screen.getAllByText('From NovaLCT, not tested on hardware')).toHaveLength(OVERRIDE_META.length);
     expect(OVERRIDE_META).toHaveLength(10);
     for (const m of OVERRIDE_META) {
       const row = screen.getByTestId(`adv-row-${m.key}`);
       expect(within(row).getByText(dictionaries.en[labelKey(m.key)])).toBeInTheDocument();
       expect(within(row).getByText(dictionaries.en[descKey(m.key)])).toBeInTheDocument();
-      expect(within(row).getByText('UNVERIFIED')).toHaveClass('tag-unverified');
+      expect(within(row).getByText('From NovaLCT, not tested on hardware')).toHaveClass('tag-unverified');
     }
-    expect(screen.getByTestId('adv-current-killOn')).toHaveTextContent('1 (0x01)');
+    expect(screen.getByTestId('adv-current-killOn')).toHaveTextContent('255 (0xFF)'); // NovaLCT blackout byte
     expect(screen.getByTestId('adv-default-killOff')).toHaveTextContent('0 (0x00)');
     expect(screen.getByTestId('adv-current-correctionBrightnessTypeBit')).toHaveTextContent('bit 1 (0x02)');
-    expect(screen.getByTestId('adv-current-scannerXyOrder')).toHaveTextContent('X in the high 16 bits (default)');
+    expect(screen.getByTestId('adv-current-scannerXyOrder')).toHaveTextContent('X in the low 16 bits (default)');
   });
 
   it('cites the checklist steps that test each value (calibration has none yet)', async () => {
@@ -154,22 +154,22 @@ describe('AdvancedSettingsPage: save', () => {
     const { api, user } = await open({}, {}, true);
     await user.clear(field('lockOn'));
     await user.type(field('lockOn'), '2');
-    await user.selectOptions(field('scannerXyOrder'), 'x-low');
+    await user.selectOptions(field('scannerXyOrder'), 'x-high');
     await user.click(screen.getByRole('button', { name: 'Save settings…' }));
 
     const dialog = screen.getByRole('dialog', { name: 'Apply these hardware settings?' });
     const items = within(within(dialog).getByTestId('adv-save-changes')).getAllByRole('listitem').map((li) => li.textContent);
     expect(items).toEqual([
-      'Freeze ON byte (lockOn): 1 (0x01) → 2 (0x02)',
-      'Card X/Y word order (scannerXyOrder): X in the high 16 bits (default) → X in the low 16 bits',
+      'Freeze ON byte (lockOn): 255 (0xFF) → 2 (0x02)',
+      'Card X/Y word order (scannerXyOrder): X in the low 16 bits (default) → X in the high 16 bits',
     ]);
     expect(api.setHardwareOverrides).not.toHaveBeenCalled(); // nothing before the confirmation
 
     await user.click(within(dialog).getByRole('button', { name: 'Yes, continue' }));
     await waitFor(() => expect(api.setHardwareOverrides).toHaveBeenCalledTimes(1));
-    expect(api.setHardwareOverrides).toHaveBeenCalledWith({ lockOn: 2, scannerXyOrder: 'x-low' });
+    expect(api.setHardwareOverrides).toHaveBeenCalledWith({ lockOn: 2, scannerXyOrder: 'x-high' });
     await waitFor(() => expect(screen.getByTestId('adv-current-lockOn')).toHaveTextContent('2 (0x02)'));
-    expect(screen.getByTestId('adv-current-scannerXyOrder')).toHaveTextContent('X in the low 16 bits');
+    expect(screen.getByTestId('adv-current-scannerXyOrder')).toHaveTextContent('X in the high 16 bits');
     expect(await screen.findByText('Hardware settings applied.')).toBeInTheDocument();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
@@ -231,7 +231,7 @@ describe('AdvancedSettingsPage: save', () => {
     await user.click(screen.getByRole('button', { name: 'Save settings…' }));
     await user.click(screen.getByRole('button', { name: 'Yes, continue' }));
     expect(await screen.findByText('Permission denied. Advanced login required.')).toBeInTheDocument();
-    expect(screen.getByTestId('adv-current-killOn')).toHaveTextContent('1 (0x01)');
+    expect(screen.getByTestId('adv-current-killOn')).toHaveTextContent('255 (0xFF)');
   });
 });
 
@@ -242,8 +242,8 @@ describe('AdvancedSettingsPage: reset to defaults', () => {
     const dialog = screen.getByRole('dialog', { name: 'Reset all to defaults?' });
     const items = within(within(dialog).getByTestId('adv-reset-changes')).getAllByRole('listitem').map((li) => li.textContent);
     expect(items).toEqual([
-      'Freeze ON byte (lockOn): 2 (0x02) → 1 (0x01)',
-      'Sending card save byte (saveSender): 5 (0x05) → 1 (0x01)',
+      'Freeze ON byte (lockOn): 2 (0x02) → 255 (0xFF)',
+      'Sending card save byte (saveSender): 5 (0x05) → 0 (0x00)',
     ]);
     await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
     expect(api.resetHardwareOverrides).not.toHaveBeenCalled();
@@ -251,7 +251,7 @@ describe('AdvancedSettingsPage: reset to defaults', () => {
     await user.click(screen.getByRole('button', { name: 'Reset to defaults…' }));
     await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Yes, continue' }));
     await waitFor(() => expect(api.resetHardwareOverrides).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(screen.getByTestId('adv-current-lockOn')).toHaveTextContent('1 (0x01)'));
+    await waitFor(() => expect(screen.getByTestId('adv-current-lockOn')).toHaveTextContent('255 (0xFF)'));
     expect(within(screen.getByTestId('adv-row-lockOn')).queryByText('differs from default')).not.toBeInTheDocument();
   });
 
@@ -289,7 +289,7 @@ describe('AdvancedSettingsPage: export and import', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Import these settings?' });
     const items = within(within(dialog).getByTestId('adv-import-changes')).getAllByRole('listitem').map((li) => li.textContent);
     expect(items).toEqual([
-      'Freeze ON byte (lockOn): 1 (0x01) → 2 (0x02)',
+      'Freeze ON byte (lockOn): 255 (0xFF) → 2 (0x02)',
       'Calibration flash erase byte (eraseSpiFlash): 0 (0x00) → 255 (0xFF)',
     ]);
     expect(dialog).toHaveTextContent('Note in the file: from the owner');
@@ -306,7 +306,7 @@ describe('AdvancedSettingsPage: export and import', () => {
     await upload(user, serializeHardwareOverrides({ ...DEFAULT_HARDWARE_OVERRIDES, lockOn: 2 }));
     await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Cancel' }));
     expect(api.setHardwareOverrides).not.toHaveBeenCalled();
-    expect(screen.getByTestId('adv-current-lockOn')).toHaveTextContent('1 (0x01)');
+    expect(screen.getByTestId('adv-current-lockOn')).toHaveTextContent('255 (0xFF)');
   });
 
   it.each([
@@ -334,13 +334,13 @@ describe('AdvancedSettingsPage: export and import', () => {
 });
 
 describe('AdvancedSettingsPage: Thai', () => {
-  it('shows the Thai menu item, explanations and the UNVERIFIED tag', async () => {
+  it('shows the Thai menu item, explanations and the NovaLCT note', async () => {
     const api = fakeApi();
     const { user } = renderApp(api, 'th');
     await user.click(screen.getByRole('button', { name: 'ตั้งค่าฮาร์ดแวร์ขั้นสูง' }));
     const row = await screen.findByTestId('adv-row-lockOn');
     expect(row).toHaveTextContent('ค่า byte เปิดหยุดภาพ (lockOn)');
-    expect(row).toHaveTextContent('UNVERIFIED');
+    expect(row).toHaveTextContent('ค่าจาก NovaLCT ยังไม่ได้ทดสอบกับเครื่องจริง');
     expect(screen.getByTestId('adv-step-lockOn')).toHaveTextContent('ทดสอบในเช็กลิสต์ขั้นที่ 7 (7b)');
   });
 });

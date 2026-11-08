@@ -94,6 +94,19 @@ describe('connect with a fake session', () => {
     expect(svc.getFirmwareDetails(id)).toEqual({ mcu: '2.3.4', fpga: '1.0.0' });
   });
 
+  it('names the receiving card from its model id, and keeps Unknown when the card refuses the read', async () => {
+    const named = await setup(fakeSession({ ReadScanCardModle: async () => 17797 }));
+    expect((await named.svc.connect(named.id)).receivingCards[0]!.model).toBe('A8');
+    const refused = await setup(
+      fakeSession({
+        ReadScanCardModle: async () => {
+          throw responseError();
+        },
+      }),
+    );
+    expect((await refused.svc.connect(refused.id)).receivingCards[0]!.model).toBe('Unknown');
+  });
+
   it('tolerates a receiving card that does not answer, but not a dead sender', async () => {
     const session = fakeSession({
       ReadScanner_McuProgramEdition: async () => {
@@ -244,7 +257,7 @@ describe('validation', () => {
     await svc.setDisplayMode(id, 'blackout');
     await svc.setDisplayMode(id, 'freeze');
     await svc.setDisplayMode(id, 'normal');
-    expect(kill.mock.calls.map((c) => c[4])).toEqual([1, 0, 0]);
+    expect(kill.mock.calls.map((c) => c[4])).toEqual([255, 0, 0]); // NovaLCT: blackout 255, normal 0
     expect(lock.mock.calls.map((c) => c[4])).toEqual([0, 2, 0]);
   });
 });

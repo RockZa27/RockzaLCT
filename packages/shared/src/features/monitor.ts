@@ -2,10 +2,9 @@
 //
 // Everything here is read-only and allowed at the normal user level.
 //
-// SCALES: @novastar/native defines no unit for any of the monitor registers (the vendor structs,
-// e.g. ScannerMonitorData.TemperInfo.Value / MonitorErrData, are plain numbers and AddressMapping
-// only gives byte positions). Every reading is therefore the RAW register byte; nothing is
-// converted to degrees C or volts. Thresholds are expressed in the same raw units.
+// UNITS: readings are carried as RAW register bytes (valid bit included) and decoded to degrees C /
+// % RH / V / rpm with units.ts (docs/novalct-protocol-notes.md Q7). Thresholds are in real units.
+// Still unknown (kept raw): sender-card temperature/humidity/fan words and the DVI status.
 
 import type { MonitorSnapshot, MonitorSnapshotOptions } from './monitorModel.js';
 

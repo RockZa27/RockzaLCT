@@ -43,11 +43,13 @@ export interface ReceiverParameters {
   grayRealize: number;
   /** GrayModeTypeEnum value, low nibble of the gray-mode register. */
   grayMode: number;
-  /** Gamma register, 1 byte. The native package applies no scaling; the unit is UNVERIFIED. */
+  /** Gamma register byte (decode with decodeGamma(): 28 = 2.8, 0xFE = custom table). */
   gamma: number;
-  /** Card temperature byte; omitted when the card flags the reading invalid. Scale unverified. */
+  /** Card temperature magnitude byte (x0.5 C); omitted when the valid bit (flags bit7) is clear. */
   temperatureRaw?: number;
-  /** Card voltage byte. Scale unverified. */
+  /** Card temperature flags byte (bit7 valid, bit0 negative); present with temperatureRaw. */
+  temperatureFlagsRaw?: number;
+  /** Card supply-voltage byte (bit7 valid, low 7 bits x 0.1 V); decode with voltageV(). */
   voltageRaw?: number;
 }
 

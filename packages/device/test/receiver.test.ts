@@ -166,7 +166,10 @@ describe('against the simulator', () => {
       voltage: 50,
     });
     mem(1, 1).writeU8(R.grayMode, (3 << 4) + 2); // Blance + Highlight
-    mem(1, 1).write(R.temperature, Buffer.from([1, 41])); // [valid, value]
+    mem(1, 1).write(R.temperature, Buffer.from([0x80, 41])); // [flags (bit7 valid), magnitude x0.5 C]
+    // the simulator seeds telemetry on every card; clear card (0,0) to get an invalid temperature block
+    mem(0, 0).write(R.temperature, Buffer.from([0, 0]));
+    mem(0, 0).writeU8(R.gamma, 0);
     seed(0, 0, { moduleWidth: 128, moduleHeight: 64, scanMode: 4 });
 
     expect(await service.getReceiverParameters(id, 1, 1)).toEqual({
@@ -188,6 +191,7 @@ describe('against the simulator', () => {
       grayMode: 2,
       gamma: 28,
       temperatureRaw: 41,
+      temperatureFlagsRaw: 0x80,
       voltageRaw: 50,
     });
 
@@ -347,7 +351,7 @@ describe('with a fake session', () => {
       ReadModuleWidth: 40, ReadModuleHeight: 20, ReadScanMode: 8, ReadPhysicalTotalDataGroupNum: 4,
       ReadLogicalTotalDataGroupNum: 4, ReadGroupNumInModule: 1, ReadModuelRows: 20, ReadDriverType: 5,
       ReadDecodeType: 1, ReadICNumber: 2, ReadRefNumPerVs: 1920, ReadGrayDepth: 12, ReadGrayMode: 0x21,
-      ReadGamma: 22, ReadTempInfoOfScanCard: 0x2d01, ReadVoltageOfScanCard: 49,
+      ReadGamma: 22, ReadTempInfoOfScanCard: 0x2d81, ReadVoltageOfScanCard: 49,
     };
     for (const [k, v] of Object.entries(reads)) base[k] = rec(k, v);
     for (const k of ['SetModuleWidth', 'SetModuleHeight', 'SetScanMode', 'SetPhysicalTotalDataGroupNum', 'SetDriverType', 'SetICNumber', 'SetRefNumPerVs', 'SetGrayDepth', 'SetGrayMode', 'SetGamma']) {
@@ -369,7 +373,7 @@ describe('with a fake session', () => {
     const { session, calls } = fake();
     const { svc, id } = await setup(session);
     const p = await svc.getReceiverParameters(id, 2, 5);
-    expect(p).toMatchObject({ grayRealize: 2, grayMode: 1, temperatureRaw: 0x2d, voltageRaw: 49, refNumPerVs: 1920 });
+    expect(p).toMatchObject({ grayRealize: 2, grayMode: 1, temperatureRaw: 0x2d, temperatureFlagsRaw: 0x81, voltageRaw: 49, refNumPerVs: 1920 });
     const reads = calls.filter(([n]) => n.startsWith('Read'));
     expect(reads.length).toBeGreaterThanOrEqual(16);
     for (const call of reads) expect(call.slice(1)).toEqual([0, 2, 5]);
